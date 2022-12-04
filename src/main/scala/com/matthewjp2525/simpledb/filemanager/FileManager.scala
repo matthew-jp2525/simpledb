@@ -4,12 +4,12 @@ import java.io.{File, RandomAccessFile}
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
-class FileManager private (
-                   dbDirectory: File,
-                   blockSize: Int,
-                   isNew: Boolean,
-                   openFiles: mutable.Map[String, RandomAccessFile]
-                 ):
+class FileManager private(
+                           dbDirectory: File,
+                           val blockSize: Int,
+                           isNew: Boolean,
+                           openFiles: mutable.Map[String, RandomAccessFile]
+                         ):
   def read(blockId: BlockId, page: Page): Try[Unit] = synchronized {
     val result =
       for file <- getFile(blockId.fileName)
@@ -25,6 +25,24 @@ class FileManager private (
       case Success(()) => Success(())
       case Failure(e) => Failure(new RuntimeException("cannot read block " + blockId + " | " + e.getMessage))
   }
+
+  private def getFile(fileName: String): Try[RandomAccessFile] =
+    Try {
+      val maybeOpenFile = openFiles.get(fileName)
+
+      maybeOpenFile match
+        case Some(openFile) =>
+          openFile
+        case None =>
+          val newFile = new RandomAccessFile(
+            new File(dbDirectory, fileName),
+            "rws"
+          )
+
+          openFiles.put(fileName, newFile)
+
+          newFile
+    }
 
   def write(blockId: BlockId, page: Page): Try[Unit] = synchronized {
     val result =
@@ -73,24 +91,6 @@ class FileManager private (
     result match
       case Success(aLength) => Success(aLength)
       case Failure(e) => Failure(new RuntimeException("cannot access " + fileName + " | " + e.getMessage))
-
-  private def getFile(fileName: String): Try[RandomAccessFile] =
-    Try {
-      val maybeOpenFile = openFiles.get(fileName)
-
-      maybeOpenFile match
-        case Some(openFile) =>
-          openFile
-        case None =>
-          val newFile = new RandomAccessFile(
-            new File(dbDirectory, fileName),
-            "rws"
-          )
-
-          openFiles.put(fileName, newFile)
-
-          newFile
-    }
 
 object FileManager:
   def apply(dbDirectory: File, blockSize: Int): FileManager =

@@ -3,7 +3,7 @@ package com.matthewjp2525.simpledb.filemanager
 import java.nio.ByteBuffer
 import java.nio.charset.{Charset, StandardCharsets}
 
-class Page private (byteBuffer: ByteBuffer):
+class Page private(byteBuffer: ByteBuffer):
   def getInt(offset: Int): Int = byteBuffer.getInt(offset)
 
   def setInt(offset: Int, value: Int): Unit = byteBuffer.putInt(offset, value)
