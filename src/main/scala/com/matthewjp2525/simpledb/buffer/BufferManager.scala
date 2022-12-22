@@ -11,11 +11,9 @@ import scala.util.{Failure, Success, Try}
 sealed abstract class BufferException extends Exception with Product with Serializable
 
 object BufferException:
-   case object BufferAbortException extends BufferException
+  case object BufferAbortException extends BufferException
 
 class BufferManager private(bufferPool: Array[Buffer], private var availableNumber: Int):
-  type StartTime = Long
-
   def available: Int = synchronized {
     availableNumber
   }
@@ -35,26 +33,32 @@ class BufferManager private(bufferPool: Array[Buffer], private var availableNumb
   }
 
   def pin(blockId: BlockId): Try[Buffer] = synchronized {
-    given StartTime = System.currentTimeMillis()
+    val startTime = System.currentTimeMillis()
+
+    @tailrec
+    def retryToPin(blockId: BlockId): Try[Buffer] =
+      val result = tryToPin(blockId)
+      result match
+        case Success(None) =>
+          if waitingTooLong(startTime) then
+            Failure(BufferAbortException)
+          else
+            Try {
+              wait(MAX_TIME)
+            } match
+              case Success(()) =>
+                retryToPin(blockId)
+              case Failure(_e: InterruptedException) => Failure(BufferAbortException)
+              case Failure(e) => Failure(e)
+
+        case Success(Some(buffer)) => Success(buffer)
+        case Failure(e) => Failure(e)
 
     retryToPin(blockId)
   }
 
-  private def waitingTooLong(using startTime: StartTime): Boolean =
+  private def waitingTooLong(startTime: Long): Boolean =
     System.currentTimeMillis() - startTime > MAX_TIME
-
-  @tailrec
-  private def retryToPin(blockId: BlockId)(using startTime: StartTime): Try[Buffer] =
-    val result = tryToPin(blockId)
-    result match
-      case Success(None) =>
-        if waitingTooLong then
-          Failure(BufferAbortException)
-        else
-          wait(MAX_TIME)
-          retryToPin(blockId)
-      case Success(Some(buffer)) => Success(buffer)
-      case Failure(e) => Failure(e)
 
   private def tryToPin(blockId: BlockId): Try[Option[Buffer]] =
     val maybeExistingBuffer = findExistingBuffer(blockId)

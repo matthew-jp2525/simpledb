@@ -70,11 +70,10 @@ class LogManager private(
     else
       Success(())
 
-  def iterator: Iterator[Array[Byte]] = {
+  def iterator: Try[Iterator[Array[Byte]]] =
     for _ <- flush
         logIterator <- LogIterator(fileManager = fileManager, blockId = currentBlockId)
     yield logIterator
-  }.get
 
 object LogManager:
   def apply(fileManager: FileManager, logFileName: String): Try[LogManager] =
