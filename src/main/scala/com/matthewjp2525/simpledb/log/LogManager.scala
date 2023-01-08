@@ -93,7 +93,7 @@ object LogManager:
       currentBlockId = aBlockId
     )
 
-  def appendNewBlock(fileManager: FileManager, logFileName: String, logPage: Page): Try[BlockId] =
+  private def appendNewBlock(fileManager: FileManager, logFileName: String, logPage: Page): Try[BlockId] =
     for blockId <- fileManager.append(logFileName)
         _ = logPage.setInt(0, fileManager.blockSize)
         _ <- fileManager.write(blockId, logPage)

@@ -34,7 +34,7 @@ class Page private(byteBuffer: ByteBuffer):
 
 
 object Page:
-  val charSet: Charset = StandardCharsets.UTF_8
+  private val charSet: Charset = StandardCharsets.UTF_8
 
   def apply(blockSize: Int): Page = new Page(ByteBuffer.allocateDirect(blockSize))
 
