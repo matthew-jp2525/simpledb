@@ -15,9 +15,8 @@ class LogIterator private(
 
   override def next: Array[Byte] =
     if currentPosition == fileManager.blockSize then
-      val destBlockId = BlockId(blockId.fileName, blockId.blockNumber - 1)
-      blockId = destBlockId
-      moveToBlock(this, destBlockId).map { _ =>
+      blockId = BlockId(blockId.fileName, blockId.blockNumber - 1)
+      moveToBlock(this, blockId).map { _ =>
         val record = page.getBytes(currentPosition)
         currentPosition += Integer.BYTES + record.length
         record
@@ -37,11 +36,10 @@ object LogIterator:
       blockId = blockId,
       page = Page(new Array[Byte](fileManager.blockSize))
     )
-    moveToBlock(logIterator, blockId)
+    moveToBlock(logIterator, blockId).map(_ => logIterator)
 
-  def moveToBlock(logIterator: LogIterator, blockId: BlockId): Try[LogIterator] =
+  def moveToBlock(logIterator: LogIterator, blockId: BlockId): Try[Unit] =
     logIterator.fileManager.read(blockId, logIterator.page).map { _ =>
       logIterator.boundary = logIterator.page.getInt(0)
       logIterator.currentPosition = logIterator.boundary
-      logIterator
     }

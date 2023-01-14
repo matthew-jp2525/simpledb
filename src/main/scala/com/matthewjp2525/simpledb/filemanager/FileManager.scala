@@ -67,7 +67,7 @@ class FileManager private(
         newBlockId = BlockId(fileName, newBlockNumber)
         file <- getFile(newBlockId.fileName)
         _ <- Try {
-          file.seek(newBlockId.blockNumber)
+          file.seek(newBlockId.blockNumber * blockSize)
         }
         byteArray = new Array[Byte](blockSize)
         _ <- Try {

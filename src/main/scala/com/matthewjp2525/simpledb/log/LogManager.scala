@@ -37,7 +37,7 @@ class LogManager private(
       if boundary - bytesNeeded < Integer.BYTES then
 
       /** so move to the next block */
-        for _ <- flush
+        for _ <- flush()
             newBlockId <- appendNewBlock(fileManager, logFileName, logPage)
         yield {
           currentBlockId = newBlockId
@@ -59,19 +59,19 @@ class LogManager private(
     }
   }
 
-  private def flush: Try[Unit] =
+  private def flush(): Try[Unit] =
     for _ <- fileManager.write(currentBlockId, logPage)
       yield
         lastSavedLSN = latestLSN
 
-  def flush(LSN: LSN): Try[Unit] =
-    if LSN >= lastSavedLSN then
-      flush
+  def flush(logSequenceNumber: LSN): Try[Unit] =
+    if logSequenceNumber >= lastSavedLSN then
+      flush()
     else
       Success(())
 
   def iterator: Try[Iterator[Array[Byte]]] =
-    for _ <- flush
+    for _ <- flush()
         logIterator <- LogIterator(fileManager = fileManager, blockId = currentBlockId)
     yield logIterator
 
