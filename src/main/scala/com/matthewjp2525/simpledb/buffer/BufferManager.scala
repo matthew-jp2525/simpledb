@@ -89,7 +89,7 @@ class BufferManager private(bufferPool: Array[Buffer], private var availableNumb
       maybeBlockId match
         case None => false
         case Some(aBlockId) =>
-          aBlockId equals BlockId
+          aBlockId equals blockId
     })
 
   private def chooseUnpinnedBuffer: Option[Buffer] =

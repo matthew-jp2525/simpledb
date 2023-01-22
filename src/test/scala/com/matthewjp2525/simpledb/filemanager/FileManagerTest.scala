@@ -5,7 +5,7 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import java.nio.file.Files
 
-class FileManagerTest extends munit.FunSuite {
+class FileManagerTest extends munit.FunSuite:
   val testDirs: FunFixture[File] = FunFixture[File](
     setup = { test =>
       Files.createTempDirectory(test.name).toFile
@@ -33,4 +33,3 @@ class FileManagerTest extends munit.FunSuite {
     assertEquals(page2.getInt(position2), 345)
     assertEquals(page2.getString(position1), "あいうえお")
   }
-}

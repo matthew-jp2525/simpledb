@@ -7,7 +7,7 @@ import java.io.{File, RandomAccessFile}
 import java.nio.ByteBuffer
 import java.nio.file.Files
 
-class LogManagerTest extends munit.FunSuite {
+class LogManagerTest extends munit.FunSuite: 
   val testDirs: FunFixture[File] = FunFixture[File](
     setup = { test =>
       Files.createTempDirectory(test.name).toFile
@@ -80,4 +80,3 @@ class LogManagerTest extends munit.FunSuite {
       ("record1", 101)
     ))
   }
-}
