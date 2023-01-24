@@ -27,26 +27,26 @@ class BufferManagerTest extends munit.FunSuite:
 
     val buffers = new Array[Buffer](6)
 
-    buffers(0) = bufferManager.pin(BlockId("testfile", 0)).get
+    buffers(0) = bufferManager.pin(BlockId("testfile", 0), 1).get
     assertEquals(bufferManager.available, 2)
 
-    buffers(1) = bufferManager.pin(BlockId("testfile", 1)).get
+    buffers(1) = bufferManager.pin(BlockId("testfile", 1), 1).get
     assertEquals(bufferManager.available, 1)
 
-    buffers(2) = bufferManager.pin(BlockId("testfile", 2)).get
+    buffers(2) = bufferManager.pin(BlockId("testfile", 2), 1).get
     assertEquals(bufferManager.available, 0)
 
     bufferManager.unpin(buffers(1))
     buffers(1) = null
     assertEquals(bufferManager.available, 1)
 
-    buffers(3) = bufferManager.pin(BlockId("testfile", 0)).get
+    buffers(3) = bufferManager.pin(BlockId("testfile", 0), 1).get
     assertEquals(bufferManager.available, 1)
 
-    buffers(4) = bufferManager.pin(BlockId("testfile", 1)).get
+    buffers(4) = bufferManager.pin(BlockId("testfile", 1), 1).get
     assertEquals(bufferManager.available, 0)
 
-    val bufferPinResult = bufferManager.pin(BlockId("testfile", 3)).map { buffer =>
+    val bufferPinResult = bufferManager.pin(BlockId("testfile", 3), 1).map { buffer =>
       buffers(5) = buffer
     }
     assertEquals(bufferPinResult, Failure(BufferAbortException))
@@ -55,7 +55,7 @@ class BufferManagerTest extends munit.FunSuite:
     buffers(2) = null
     assertEquals(bufferManager.available, 1)
 
-    buffers(5) = bufferManager.pin(BlockId("testfile", 3)).get
+    buffers(5) = bufferManager.pin(BlockId("testfile", 3), 1).get
     assertEquals(bufferManager.available, 0)
 
     val resultingBufferAssignment = buffers.zipWithIndex.map((buffer, i) => (Option(buffer).flatMap(_.block), i)).toList

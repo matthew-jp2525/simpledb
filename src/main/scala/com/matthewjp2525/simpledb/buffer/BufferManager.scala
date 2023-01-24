@@ -32,7 +32,7 @@ class BufferManager private(bufferPool: Array[Buffer], private var availableNumb
       notifyAll()
   }
 
-  def pin(blockId: BlockId): Try[Buffer] = synchronized {
+  def pin(blockId: BlockId, waitMaxTime: Long = MAX_TIME): Try[Buffer] = synchronized {
     val startTime = System.currentTimeMillis()
 
     @tailrec
@@ -40,11 +40,11 @@ class BufferManager private(bufferPool: Array[Buffer], private var availableNumb
       val result = tryToPin(blockId)
       result match
         case Success(None) =>
-          if waitingTooLong(startTime) then
+          if waitingTooLong(startTime, waitMaxTime) then
             Failure(BufferAbortException)
           else
             Try {
-              wait(MAX_TIME)
+              wait(waitMaxTime)
             } match
               case Success(()) =>
                 retryToPin(blockId)
@@ -57,8 +57,8 @@ class BufferManager private(bufferPool: Array[Buffer], private var availableNumb
     retryToPin(blockId)
   }
 
-  private def waitingTooLong(startTime: Long): Boolean =
-    System.currentTimeMillis() - startTime > MAX_TIME
+  private def waitingTooLong(startTime: Long, waitMaxTime: Long): Boolean =
+    System.currentTimeMillis() - startTime > waitMaxTime
 
   private def tryToPin(blockId: BlockId): Try[Option[Buffer]] =
     val maybeExistingBuffer = findExistingBuffer(blockId)
