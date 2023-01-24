@@ -56,7 +56,8 @@ class LockTable:
     def retry(): Try[Unit] =
     // Don't check xlock here because concurrency manager will always obtain an slock on the block before requesting the xlock.
       ((locks.get(blockId), waitingTooLong(startTime)): @unchecked) match
-        case (Some(SLock(_count)), false) =>
+        // case when other slock exists
+        case (Some(SLock(count)), false) if count > 1 =>
           Try {
             wait(MAX_TIME)
           } match
@@ -64,14 +65,13 @@ class LockTable:
               retry()
             case Failure(_e: InterruptedException) => Failure(LockAbortException)
             case Failure(e) => Failure(e)
-        case (Some(SLock(count)), true) =>
-          if count > 1 then
-          // case when other slock exists
-            Failure(LockAbortException)
-          else
-            Success {
-              locks.put(blockId, XLock)
-            }
+        // case when other slock exists and waiting too long
+        case (Some(SLock(count)), true) if count > 1 =>
+          Failure(LockAbortException)
+        case _ =>
+          Success {
+            locks.put(blockId, XLock)
+          }
 
     retry()
   }
@@ -85,8 +85,8 @@ class LockTable:
           locks.remove(blockId)
           notifyAll()
       case Some(XLock) =>
-          locks.remove(blockId)
-          notifyAll()
+        locks.remove(blockId)
+        notifyAll()
       case None => ()
 
 object LockTable:
