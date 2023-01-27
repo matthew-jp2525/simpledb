@@ -10,7 +10,7 @@ import java.io.File
 import java.nio.file.Files
 import scala.util.Failure
 
-class TransactionTest extends  munit.FunSuite:
+class TransactionTest extends munit.FunSuite:
   val testDirs: FunFixture[File] = FunFixture[File](
     setup = { test =>
       Files.createTempDirectory(test.name).toFile

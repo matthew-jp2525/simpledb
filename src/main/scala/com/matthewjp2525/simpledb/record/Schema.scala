@@ -43,5 +43,3 @@ extension (schema: Schema)
     val newFields = (schema.fields ++ aSchema.fields).distinct
     val newInfo = schema.info ++ aSchema.info
     schema.copy(fields = newFields, info = newInfo)
-
-

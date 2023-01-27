@@ -76,7 +76,7 @@ class LockTable:
     retry()
   }
 
-  def unLock(blockId: BlockId): Unit =
+  def unLock(blockId: BlockId): Unit = synchronized {
     locks.get(blockId) match
       case Some(SLock(count)) =>
         if count > 1 then
@@ -88,6 +88,7 @@ class LockTable:
         locks.remove(blockId)
         notifyAll()
       case None => ()
+  }
 
 object LockTable:
   private val MAX_TIME = 10000 // 10 seconds
