@@ -31,19 +31,26 @@ class TableScan private(
 
   def next(): Try[Boolean] =
     @tailrec
-    def go(recordPage: RecordPage): Try[Boolean] =
+    def go(): Try[Boolean] =
       if currentSlot < 0 then
-        atLastBlock(recordPage, tx, fileName) match
+        atLastBlock(
+          currentRecordPage.getOrElse(throw MissingRecordPageException),
+          tx,
+          fileName
+        ) match
           case Failure(e) => Failure(e)
           case Success(true) => Success(false)
           case Success(false) =>
-            (for _ <- moveToBlock(this, recordPage.blockId.blockNumber + 1)
-                 slot <- recordPage.nextAfter(currentSlot)
+            (for _ <- moveToBlock(
+              this,
+              currentRecordPage.getOrElse(throw MissingRecordPageException).blockId.blockNumber + 1
+            )
+                 slot <- currentRecordPage.getOrElse(throw MissingRecordPageException).nextAfter(currentSlot)
             yield slot) match
               case Failure(e) => Failure(e)
               case Success(slot) =>
                 currentSlot = slot
-                go(recordPage)
+                go()
       else
         Success(true)
 
@@ -52,7 +59,7 @@ class TableScan private(
       case Failure(e) => Failure(e)
       case Success(slot) =>
         currentSlot = slot
-        go(recordPage)
+        go()
 
   def moveToRid(rid: RID): Try[Unit] =
     close()
@@ -72,9 +79,13 @@ class TableScan private(
 
   def insert(): Try[Unit] =
     @tailrec
-    def go(recordPage: RecordPage): Try[Unit] =
+    def go(): Try[Unit] =
       if currentSlot < 0 then
-        atLastBlock(recordPage, tx, fileName) match
+        atLastBlock(
+          currentRecordPage.getOrElse(throw MissingRecordPageException),
+          tx,
+          fileName
+        ) match
           case Failure(e) => Failure(e)
           case Success(result) =>
             (
@@ -82,23 +93,25 @@ class TableScan private(
                 if result then
                   moveToNewBlock(this)
                 else
-                  moveToBlock(this, recordPage.blockId.blockNumber + 1)
+                  moveToBlock(
+                    this,
+                    currentRecordPage.getOrElse(throw MissingRecordPageException).blockId.blockNumber + 1
+                  )
               }
-                  slot <- recordPage.insertAfter(currentSlot)
+                  slot <- currentRecordPage.getOrElse(throw MissingRecordPageException).insertAfter(currentSlot)
               yield slot) match
               case Failure(e) => Failure(e)
               case Success(slot) =>
                 currentSlot = slot
-                go(recordPage)
+                go()
       else
         Success(())
 
-    val recordPage = currentRecordPage.getOrElse(throw MissingRecordPageException)
-    recordPage.insertAfter(currentSlot) match
+    currentRecordPage.getOrElse(throw MissingRecordPageException).insertAfter(currentSlot) match
       case Failure(e) => Failure(e)
       case Success(slot) =>
         currentSlot = slot
-        go(recordPage)
+        go()
 
   // Methods that access the current record
   def getInt(fieldName: FieldName): Try[Int] =
@@ -117,7 +130,7 @@ class TableScan private(
     val recordPage = currentRecordPage.getOrElse(throw MissingRecordPageException)
     recordPage.setString(currentSlot, fieldName, value)
 
-  def delete: Try[Unit] =
+  def delete(): Try[Unit] =
     val recordPage = currentRecordPage.getOrElse(throw MissingRecordPageException)
     recordPage.delete(currentSlot)
 
@@ -140,9 +153,10 @@ object TableScan:
 
     val blockId = BlockId(tableScan.fileName, blockNumber)
 
-    for recordPage <- RecordPage(tableScan.tx, blockId, tableScan.layout)
-        _ = tableScan.currentRecordPage = Some(recordPage)
-    yield ()
+    RecordPage(tableScan.tx, blockId, tableScan.layout).map { recordPage =>
+      tableScan.currentRecordPage = Some(recordPage)
+      tableScan.currentSlot = -1
+    }
 
   private def moveToNewBlock(tableScan: TableScan): Try[Unit] =
     tableScan.close()
@@ -150,9 +164,12 @@ object TableScan:
     for blockId <- tableScan.tx.append(tableScan.fileName)
         recordPage <- RecordPage(tableScan.tx, blockId, tableScan.layout)
         _ = tableScan.currentRecordPage = Some(recordPage)
-    yield ()
+        _ <- recordPage.format()
+    yield {
+      tableScan.currentSlot = -1
+    }
 
   private def atLastBlock(recordPage: RecordPage, tx: Transaction, fileName: FileName): Try[Boolean] =
     tx.size(fileName).map { size =>
-      size == recordPage.blockId.blockNumber
+      recordPage.blockId.blockNumber == size - 1
     }

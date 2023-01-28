@@ -53,17 +53,17 @@ class RecordPageTest extends munit.FunSuite:
     recordPage.format().get
 
     @tailrec
-    def fillPageWithRecords(slot: Slot, number: Int): Unit =
+    def fillPageWithRecords(slot: Slot = -1, number: Int = 100): Unit =
       val aSlot = recordPage.insertAfter(slot).get
       if aSlot >= 0 then
         recordPage.setInt(aSlot, "A", number).get
         recordPage.setString(aSlot, "B", "rec" + number).get
         fillPageWithRecords(aSlot, number + 1)
 
-    fillPageWithRecords(-1, 100)
+    fillPageWithRecords()
 
     @tailrec
-    def collectContents(slot: Slot, acc: ListBuffer[(Slot, Int, String)] = ListBuffer.empty[(Slot, Int, String)]): List[(Slot, Int, String)] =
+    def collectContents(slot: Slot = -1, acc: ListBuffer[(Slot, Int, String)] = ListBuffer.empty[(Slot, Int, String)]): List[(Slot, Int, String)] =
       val aSlot = recordPage.nextAfter(slot).get
       if aSlot >= 0 then
         val a = recordPage.getInt(aSlot, "A").get
@@ -73,7 +73,7 @@ class RecordPageTest extends munit.FunSuite:
       else
         acc.toList
 
-    val contents = collectContents(-1)
+    val contents = collectContents()
 
     assertEquals(contents, List(
       (0, 100, "rec100"),
