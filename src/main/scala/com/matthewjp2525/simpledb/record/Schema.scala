@@ -6,12 +6,24 @@ import scala.compiletime.ops.string.Length
 
 type FieldName = String
 
-enum FieldType:
-  case Integer, Varchar
+enum FieldType(val value: Int):
+  case Integer extends FieldType(0)
+  case Varchar extends FieldType(1)
+
+object FieldType:
+  def fromValue(value: Int): FieldType =
+    value match
+      case 0 => Integer
+      case 1 => Varchar
+      case otherValue =>
+        throw new RuntimeException(s"field type for value $otherValue not supported")
 
 case class FieldInfo(`type`: FieldType, length: Int)
 
-case class Schema(fields: Vector[FieldName] = Vector.empty[FieldName], info: Map[FieldName, FieldInfo] = Map.empty[FieldName, FieldInfo])
+case class Schema(
+                   fields: Vector[FieldName] = Vector.empty[FieldName],
+                   info: Map[FieldName, FieldInfo] = Map.empty[FieldName, FieldInfo]
+                 )
 
 extension (schema: Schema)
   def `type`(fieldName: FieldName): FieldType =
