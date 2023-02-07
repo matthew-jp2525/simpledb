@@ -7,10 +7,10 @@ object SeqSupport:
     @annotation.tailrec
     def loop(remaining: Seq[A]): Try[Unit] =
       remaining match {
-        case Nil => Success(())
-        case head :: tail => f(head) match {
+        case head +: tail => f(head) match {
           case Success(()) => loop(tail)
           case Failure(e) => Failure(e)
         }
+        case _ => Success(())
       }
     loop(list)

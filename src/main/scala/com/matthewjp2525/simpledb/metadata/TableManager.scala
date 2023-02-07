@@ -13,9 +13,12 @@ sealed abstract class TableManagerException extends Exception with Product with 
 
 object TableManagerException:
   case class TableNotFoundException(tableName: TableName) extends TableManagerException:
-    override def getMessage(): String = s"specified table ($tableName) not found | " + super.getMessage()
+    override def getMessage: String = s"specified table ($tableName) not found | " + super.getMessage
 
-class TableManager private(tableCatalogLayout: Layout, fieldCatalogLayout: Layout):
+class TableManager private(
+                            val tableCatalogLayout: Layout,
+                            val fieldCatalogLayout: Layout
+                          ):
 
   def getLayout(tableName: TableName, tx: Transaction): Try[Layout] =
     @tailrec
