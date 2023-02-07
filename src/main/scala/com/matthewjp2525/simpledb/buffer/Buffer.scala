@@ -8,7 +8,7 @@ import scala.util.{Success, Try}
 type TransactionNumber = Int
 
 class Buffer private(fileManager: FileManager, logManager: LogManager, val contents: Page):
-  var maybeBlockId: Option[BlockId] = None
+  private var maybeBlockId: Option[BlockId] = None
   private var transactionNumber: TransactionNumber = -1
   private var logSequenceNumber: LSN = -1
   private var pins: Int = 0
