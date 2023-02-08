@@ -1,7 +1,9 @@
 package com.matthewjp2525.simpledb.record
 
 import com.matthewjp2525.simpledb.filemanager.BlockId
+import com.matthewjp2525.simpledb.record.LayoutOps.*
 import com.matthewjp2525.simpledb.record.RecordPage.{EMPTY, USED}
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.transaction.Transaction
 
 import scala.annotation.tailrec

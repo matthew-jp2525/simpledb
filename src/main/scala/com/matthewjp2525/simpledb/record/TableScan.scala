@@ -1,6 +1,7 @@
 package com.matthewjp2525.simpledb.record
 
 import com.matthewjp2525.simpledb.filemanager.{BlockId, BlockNumber, FileName}
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.record.TableScan.{atLastBlock, moveToBlock, moveToNewBlock}
 import com.matthewjp2525.simpledb.record.TableScanException.MissingRecordPageException
 import com.matthewjp2525.simpledb.transaction.Transaction

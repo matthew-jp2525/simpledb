@@ -1,6 +1,7 @@
 package com.matthewjp2525.simpledb.record
 
 import com.matthewjp2525.simpledb.filemanager.Page
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.record.FieldType.*
 
 type Offset = Int
@@ -24,5 +25,6 @@ object Layout:
       case Varchar => Page.maxLength(schema.length(fieldName))
 
 
-extension (layout: Layout)
-  def offset(fieldName: FieldName): Offset = layout.offsets(fieldName)
+object LayoutOps:
+  extension (layout: Layout)
+    def offset(fieldName: FieldName): Offset = layout.offsets(fieldName)

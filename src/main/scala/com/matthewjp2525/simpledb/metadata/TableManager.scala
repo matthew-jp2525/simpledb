@@ -3,6 +3,8 @@ package com.matthewjp2525.simpledb.metadata
 import com.matthewjp2525.simpledb.metadata.TableManager.MAX_NAME
 import com.matthewjp2525.simpledb.metadata.TableManagerException.TableNotFoundException
 import com.matthewjp2525.simpledb.record.*
+import com.matthewjp2525.simpledb.record.SchemaOps.*
+import com.matthewjp2525.simpledb.record.LayoutOps.*
 import com.matthewjp2525.simpledb.transaction.Transaction
 import com.matthewjp2525.simpledb.util.SeqSupport.foreachTry
 

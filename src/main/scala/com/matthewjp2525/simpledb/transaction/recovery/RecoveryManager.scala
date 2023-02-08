@@ -4,6 +4,7 @@ import com.matthewjp2525.simpledb.buffer.{Buffer, BufferManager, TransactionNumb
 import com.matthewjp2525.simpledb.log.{LSN, LogManager}
 import com.matthewjp2525.simpledb.transaction.Transaction
 import com.matthewjp2525.simpledb.transaction.recovery.LogRecord.*
+import com.matthewjp2525.simpledb.transaction.recovery.LogRecordOps.*
 import com.matthewjp2525.simpledb.transaction.recovery.RecoveryManagerException.MissingBlockException
 
 import scala.annotation.tailrec

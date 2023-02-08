@@ -74,101 +74,102 @@ object LogRecord:
       case _ => None
 
 
-extension (logRecord: LogRecord)
-  def maybeTransactionNumber: Option[Int] =
-    logRecord match
-      case CheckpointRecord => None
-      case StartRecord(transactionNumber) => Some(transactionNumber)
-      case CommitRecord(transactionNumber) => Some(transactionNumber)
-      case RollbackRecord(transactionNumber) => Some(transactionNumber)
-      case SetIntRecord(transactionNumber, _, _, _) => Some(transactionNumber)
-      case SetStringRecord(transactionNumber, _, _, _) => Some(transactionNumber)
+object LogRecordOps:
+  extension (logRecord: LogRecord)
+    def maybeTransactionNumber: Option[Int] =
+      logRecord match
+        case CheckpointRecord => None
+        case StartRecord(transactionNumber) => Some(transactionNumber)
+        case CommitRecord(transactionNumber) => Some(transactionNumber)
+        case RollbackRecord(transactionNumber) => Some(transactionNumber)
+        case SetIntRecord(transactionNumber, _, _, _) => Some(transactionNumber)
+        case SetStringRecord(transactionNumber, _, _, _) => Some(transactionNumber)
 
-  def show: String =
-    logRecord match
-      case CheckpointRecord => "<CHECKPOINT>"
-      case StartRecord(transactionNumber) => s"<START $transactionNumber>"
-      case CommitRecord(transactionNumber) => s"<COMMIT $transactionNumber>"
-      case RollbackRecord(transactionNumber) => s"<ROLLBACK $transactionNumber>"
-      case SetIntRecord(transactionNumber, offset, oldValue, blockId) => s"<SETINT $transactionNumber $blockId $offset $oldValue>"
-      case SetStringRecord(transactionNumber, offset, oldValue, blockId) => s"<SETSTRING $transactionNumber $blockId $offset $oldValue>"
+    def show: String =
+      logRecord match
+        case CheckpointRecord => "<CHECKPOINT>"
+        case StartRecord(transactionNumber) => s"<START $transactionNumber>"
+        case CommitRecord(transactionNumber) => s"<COMMIT $transactionNumber>"
+        case RollbackRecord(transactionNumber) => s"<ROLLBACK $transactionNumber>"
+        case SetIntRecord(transactionNumber, offset, oldValue, blockId) => s"<SETINT $transactionNumber $blockId $offset $oldValue>"
+        case SetStringRecord(transactionNumber, offset, oldValue, blockId) => s"<SETSTRING $transactionNumber $blockId $offset $oldValue>"
 
-  def undo(tx: Transaction): Try[Unit] =
-    logRecord match
-      case SetIntRecord(_transactionNumber, offset, oldValue, blockId) =>
-        for _ <- tx.pin(blockId)
-            _ <- tx.setInt(blockId, offset, oldValue, false)
-            _ = tx.unpin(blockId)
-        yield ()
-      case SetStringRecord(_transactionNumber, offset, oldValue, blockId) =>
-        for _ <- tx.pin(blockId)
-            _ <- tx.setString(blockId, offset, oldValue, false)
-            _ = tx.unpin(blockId)
-        yield ()
-      case _ => Success(())
+    def undo(tx: Transaction): Try[Unit] =
+      logRecord match
+        case SetIntRecord(_transactionNumber, offset, oldValue, blockId) =>
+          for _ <- tx.pin(blockId)
+              _ <- tx.setInt(blockId, offset, oldValue, false)
+              _ = tx.unpin(blockId)
+          yield ()
+        case SetStringRecord(_transactionNumber, offset, oldValue, blockId) =>
+          for _ <- tx.pin(blockId)
+              _ <- tx.setString(blockId, offset, oldValue, false)
+              _ = tx.unpin(blockId)
+          yield ()
+        case _ => Success(())
 
-  def writeToLog(logManager: LogManager): Try[LSN] =
-    logRecord match
-      case CheckpointRecord =>
-        val recordLength = Integer.BYTES
-        val record = new Array[Byte](recordLength)
-        val page = Page(record)
-        page.setInt(0, Checkpoint.value)
-        logManager.append(record)
-      case StartRecord(transactionNumber) =>
-        val transactionPosition = Integer.BYTES
-        val recordLength = transactionPosition + Integer.BYTES
-        val record = new Array[Byte](recordLength)
-        val page = Page(record)
-        page.setInt(0, Start.value)
-        page.setInt(transactionPosition, transactionNumber)
-        logManager.append(record)
-      case CommitRecord(transactionNumber) =>
-        val transactionPosition = Integer.BYTES
-        val recordLength = transactionPosition + Integer.BYTES
-        val record = new Array[Byte](recordLength)
-        val page = Page(record)
-        page.setInt(0, Commit.value)
-        page.setInt(transactionPosition, transactionNumber)
-        logManager.append(record)
-      case RollbackRecord(transactionNumber) =>
-        val transactionPosition = Integer.BYTES
-        val recordLength = transactionPosition + Integer.BYTES
-        val record = new Array[Byte](recordLength)
-        val page = Page(record)
-        page.setInt(0, Rollback.value)
-        page.setInt(transactionPosition, transactionNumber)
-        logManager.append(record)
-      case SetIntRecord(transactionNumber, offset, oldValue, blockId) =>
-        val transactionPosition = Integer.BYTES
-        val fileNamePosition = transactionPosition + Integer.BYTES
-        val blockNumberPosition = fileNamePosition + Page.maxLength(blockId.fileName.length)
-        val offsetPosition = blockNumberPosition + Integer.BYTES
-        val valuePosition = offsetPosition + Integer.BYTES
-        val recordLength = valuePosition + Integer.BYTES
-        val record = new Array[Byte](recordLength)
-        val page = Page(record)
-        page.setInt(0, SetInt.value)
-        page.setInt(transactionPosition, transactionNumber)
-        page.setString(fileNamePosition, blockId.fileName)
-        page.setInt(blockNumberPosition, blockId.blockNumber)
-        page.setInt(offsetPosition, offset)
-        page.setInt(valuePosition, oldValue)
-        logManager.append(record)
-      case SetStringRecord(transactionNumber, offset, oldValue, blockId) =>
-        val transactionPosition = Integer.BYTES
-        val fileNamePosition = transactionPosition + Integer.BYTES
-        val blockNumberPosition = fileNamePosition + Page.maxLength(blockId.fileName.length)
-        val offsetPosition = blockNumberPosition + Integer.BYTES
-        val valuePosition = offsetPosition + Integer.BYTES
-        val recordLength = valuePosition + Page.maxLength(oldValue.length)
-        val record = new Array[Byte](recordLength)
-        val page = Page(record)
-        page.setInt(0, SetString.value)
-        page.setInt(transactionPosition, transactionNumber)
-        page.setString(fileNamePosition, blockId.fileName)
-        page.setInt(blockNumberPosition, blockId.blockNumber)
-        page.setInt(offsetPosition, offset)
-        page.setString(valuePosition, oldValue)
-        logManager.append(record)
+    def writeToLog(logManager: LogManager): Try[LSN] =
+      logRecord match
+        case CheckpointRecord =>
+          val recordLength = Integer.BYTES
+          val record = new Array[Byte](recordLength)
+          val page = Page(record)
+          page.setInt(0, Checkpoint.value)
+          logManager.append(record)
+        case StartRecord(transactionNumber) =>
+          val transactionPosition = Integer.BYTES
+          val recordLength = transactionPosition + Integer.BYTES
+          val record = new Array[Byte](recordLength)
+          val page = Page(record)
+          page.setInt(0, Start.value)
+          page.setInt(transactionPosition, transactionNumber)
+          logManager.append(record)
+        case CommitRecord(transactionNumber) =>
+          val transactionPosition = Integer.BYTES
+          val recordLength = transactionPosition + Integer.BYTES
+          val record = new Array[Byte](recordLength)
+          val page = Page(record)
+          page.setInt(0, Commit.value)
+          page.setInt(transactionPosition, transactionNumber)
+          logManager.append(record)
+        case RollbackRecord(transactionNumber) =>
+          val transactionPosition = Integer.BYTES
+          val recordLength = transactionPosition + Integer.BYTES
+          val record = new Array[Byte](recordLength)
+          val page = Page(record)
+          page.setInt(0, Rollback.value)
+          page.setInt(transactionPosition, transactionNumber)
+          logManager.append(record)
+        case SetIntRecord(transactionNumber, offset, oldValue, blockId) =>
+          val transactionPosition = Integer.BYTES
+          val fileNamePosition = transactionPosition + Integer.BYTES
+          val blockNumberPosition = fileNamePosition + Page.maxLength(blockId.fileName.length)
+          val offsetPosition = blockNumberPosition + Integer.BYTES
+          val valuePosition = offsetPosition + Integer.BYTES
+          val recordLength = valuePosition + Integer.BYTES
+          val record = new Array[Byte](recordLength)
+          val page = Page(record)
+          page.setInt(0, SetInt.value)
+          page.setInt(transactionPosition, transactionNumber)
+          page.setString(fileNamePosition, blockId.fileName)
+          page.setInt(blockNumberPosition, blockId.blockNumber)
+          page.setInt(offsetPosition, offset)
+          page.setInt(valuePosition, oldValue)
+          logManager.append(record)
+        case SetStringRecord(transactionNumber, offset, oldValue, blockId) =>
+          val transactionPosition = Integer.BYTES
+          val fileNamePosition = transactionPosition + Integer.BYTES
+          val blockNumberPosition = fileNamePosition + Page.maxLength(blockId.fileName.length)
+          val offsetPosition = blockNumberPosition + Integer.BYTES
+          val valuePosition = offsetPosition + Integer.BYTES
+          val recordLength = valuePosition + Page.maxLength(oldValue.length)
+          val record = new Array[Byte](recordLength)
+          val page = Page(record)
+          page.setInt(0, SetString.value)
+          page.setInt(transactionPosition, transactionNumber)
+          page.setString(fileNamePosition, blockId.fileName)
+          page.setInt(blockNumberPosition, blockId.blockNumber)
+          page.setInt(offsetPosition, offset)
+          page.setString(valuePosition, oldValue)
+          logManager.append(record)
 
