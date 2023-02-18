@@ -21,11 +21,11 @@ enum Lock:
 class LockTable:
   private val locks = new mutable.HashMap[BlockId, Lock]()
 
-  def sLock(blockId: BlockId): Try[Unit] = synchronized {
+  def sLock(blockId: BlockId): Unit = synchronized {
     val startTime = System.currentTimeMillis()
 
     @tailrec
-    def retry(): Try[Unit] =
+    def retry(): Unit =
       (locks.get(blockId), waitingTooLong(startTime)) match
         case (Some(XLock), false) =>
           Try {
@@ -33,27 +33,22 @@ class LockTable:
           } match
             case Success(()) =>
               retry()
-            case Failure(_e: InterruptedException) => Failure(LockAbortException)
-            case Failure(e) => Failure(e)
+            case Failure(_: InterruptedException) => throw LockAbortException
         case (Some(XLock), true) =>
-          Failure(LockAbortException)
+          throw LockAbortException
         case (Some(SLock(count)), _) =>
-          Success {
-            locks.put(blockId, SLock(count + 1))
-          }
+          locks.put(blockId, SLock(count + 1))
         case (None, _) =>
-          Success {
-            locks.put(blockId, SLock(1))
-          }
+          locks.put(blockId, SLock(1))
 
     retry()
   }
 
-  def xLock(blockId: BlockId): Try[Unit] = synchronized {
+  def xLock(blockId: BlockId): Unit = synchronized {
     val startTime = System.currentTimeMillis()
 
     @tailrec
-    def retry(): Try[Unit] =
+    def retry(): Unit =
     // Don't check xlock here because concurrency manager will always obtain an slock on the block before requesting the xlock.
       ((locks.get(blockId), waitingTooLong(startTime)): @unchecked) match
         // case when other slock exists
@@ -63,15 +58,12 @@ class LockTable:
           } match
             case Success(()) =>
               retry()
-            case Failure(_e: InterruptedException) => Failure(LockAbortException)
-            case Failure(e) => Failure(e)
+            case Failure(_: InterruptedException) => throw LockAbortException
         // case when other slock exists and waiting too long
         case (Some(SLock(count)), true) if count > 1 =>
-          Failure(LockAbortException)
+          throw LockAbortException
         case _ =>
-          Success {
-            locks.put(blockId, XLock)
-          }
+          locks.put(blockId, XLock)
 
     retry()
   }
@@ -95,4 +87,3 @@ object LockTable:
 
   private def waitingTooLong(startTime: Long): Boolean =
     System.currentTimeMillis() - startTime > MAX_TIME
-

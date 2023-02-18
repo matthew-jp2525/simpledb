@@ -94,21 +94,19 @@ object LogRecordOps:
         case SetIntRecord(transactionNumber, offset, oldValue, blockId) => s"<SETINT $transactionNumber $blockId $offset $oldValue>"
         case SetStringRecord(transactionNumber, offset, oldValue, blockId) => s"<SETSTRING $transactionNumber $blockId $offset $oldValue>"
 
-    def undo(tx: Transaction): Try[Unit] =
+    def undo(tx: Transaction): Unit =
       logRecord match
         case SetIntRecord(_transactionNumber, offset, oldValue, blockId) =>
-          for _ <- tx.pin(blockId)
-              _ <- tx.setInt(blockId, offset, oldValue, false)
-              _ = tx.unpin(blockId)
-          yield ()
+          tx.pin(blockId)
+          tx.setInt(blockId, offset, oldValue, false)
+          tx.unpin(blockId)
         case SetStringRecord(_transactionNumber, offset, oldValue, blockId) =>
-          for _ <- tx.pin(blockId)
-              _ <- tx.setString(blockId, offset, oldValue, false)
-              _ = tx.unpin(blockId)
-          yield ()
-        case _ => Success(())
+          tx.pin(blockId)
+          tx.setString(blockId, offset, oldValue, false)
+          tx.unpin(blockId)
+        case _ => ()
 
-    def writeToLog(logManager: LogManager): Try[LSN] =
+    def writeToLog(logManager: LogManager): LSN =
       logRecord match
         case CheckpointRecord =>
           val recordLength = Integer.BYTES
@@ -172,4 +170,3 @@ object LogRecordOps:
           page.setInt(offsetPosition, offset)
           page.setString(valuePosition, oldValue)
           logManager.append(record)
-

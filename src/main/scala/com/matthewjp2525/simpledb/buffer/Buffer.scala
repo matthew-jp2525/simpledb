@@ -21,22 +21,19 @@ class Buffer private(fileManager: FileManager, logManager: LogManager, val conte
 
   def modifyingTransactions: TransactionNumber = transactionNumber
 
-  def assignToBlock(blockId: BlockId): Try[Unit] =
-    for _ <- flush
-        _ = maybeBlockId = Some(blockId)
-        _ <- fileManager.read(blockId, contents)
-    yield pins = 0
+  def assignToBlock(blockId: BlockId): Unit =
+    flush()
+    maybeBlockId = Some(blockId)
+    fileManager.read(blockId, contents)
+    pins = 0
 
-  def flush: Try[Unit] =
-    block match
-      case None => Success(())
-      case Some(blockId) =>
-        if transactionNumber >= 0 then
-          for _ <- logManager.flush(logSequenceNumber)
-              _ <- fileManager.write(blockId, contents)
-          yield transactionNumber = -1
-        else
-          Success(())
+  def flush(): Unit =
+    block.fold(()) { blockId =>
+      if transactionNumber >= 0 then
+        logManager.flush(logSequenceNumber)
+        fileManager.write(blockId, contents)
+        transactionNumber = -1
+    }
 
   def block: Option[BlockId] = maybeBlockId
 

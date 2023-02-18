@@ -19,10 +19,10 @@ class LogManagerTest extends munit.FunSuite:
 
   testDirs.test("can read and write logs") { testDir =>
     val fileManager = FileManager(testDir, 400)
-    val logManager = LogManager(fileManager, "testlogfile").get
+    val logManager = LogManager(fileManager, "testlogfile")
 
     (1 to 35).foreach { i =>
-      val string = s"record${i}"
+      val string = s"record$i"
       val number = i + 100
       val numberPosition = Page.maxLength(string.length)
       val record = new Array[Byte](numberPosition + Integer.BYTES)
@@ -33,7 +33,7 @@ class LogManagerTest extends munit.FunSuite:
     }
 
     val result =
-      logManager.iterator.get.map { record =>
+      logManager.iterator.map { record =>
         val page = Page(record)
         val string = page.getString(0)
         val numberPosition = Page.maxLength(string.length)

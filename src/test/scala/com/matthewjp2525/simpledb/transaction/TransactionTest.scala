@@ -22,7 +22,7 @@ class TransactionTest extends munit.FunSuite:
 
   testDirs.test("commit and rollback work") { testDir =>
     val fileManager = FileManager(testDir, 400)
-    val logManager = LogManager(fileManager, "testlogfile").get
+    val logManager = LogManager(fileManager, "testlogfile")
     val bufferManager = BufferManager(fileManager, logManager, 8)
     val transactionNumberGenerator = new TransactionNumberGenerator()
     val blockId = BlockId("testfile", 1)
@@ -35,8 +35,8 @@ class TransactionTest extends munit.FunSuite:
 
     val tx2 = Transaction(fileManager, logManager, bufferManager, transactionNumberGenerator)
     tx2.pin(blockId)
-    val intValue = tx2.getInt(blockId, 80).get
-    val stringValue = tx2.getString(blockId, 40).get
+    val intValue = tx2.getInt(blockId, 80)
+    val stringValue = tx2.getString(blockId, 40)
     assertEquals(intValue, 1)
     assertEquals(stringValue, "one")
     val newIntValue = intValue + 1
@@ -47,14 +47,14 @@ class TransactionTest extends munit.FunSuite:
 
     val tx3 = Transaction(fileManager, logManager, bufferManager, transactionNumberGenerator)
     tx3.pin(blockId)
-    assertEquals(tx3.getInt(blockId, 80).get, 2)
-    assertEquals(tx3.getString(blockId, 40).get, "one!")
+    assertEquals(tx3.getInt(blockId, 80), 2)
+    assertEquals(tx3.getString(blockId, 40), "one!")
     tx3.setInt(blockId, 80, 9999, true)
-    assertEquals(tx3.getInt(blockId, 80).get, 9999)
+    assertEquals(tx3.getInt(blockId, 80), 9999)
     tx3.rollback()
 
     val tx4 = Transaction(fileManager, logManager, bufferManager, transactionNumberGenerator)
     tx4.pin(blockId)
-    assertEquals(tx4.getInt(blockId, 80).get, 2)
+    assertEquals(tx4.getInt(blockId, 80), 2)
     tx4.commit()
   }

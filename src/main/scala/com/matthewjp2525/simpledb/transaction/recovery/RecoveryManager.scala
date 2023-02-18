@@ -16,24 +16,22 @@ object RecoveryManagerException:
   case object MissingBlockException extends RecoveryManagerException
 
 class RecoveryManager(logManager: LogManager, bufferManager: BufferManager):
-  def commit(tx: Transaction): Try[Unit] =
-    for _ <- bufferManager.flushAll(tx.transactionNumber)
-        logSequenceNumber <- CommitRecord(tx.transactionNumber).writeToLog(logManager)
-        _ <- logManager.flush(logSequenceNumber)
-    yield ()
+  def commit(tx: Transaction): Unit =
+    bufferManager.flushAll(tx.transactionNumber)
+    val logSequenceNumber = CommitRecord(tx.transactionNumber).writeToLog(logManager)
+    logManager.flush(logSequenceNumber)
 
-  def rollback(tx: Transaction): Try[Unit] =
-    for _ <- doRollback(tx)
-        _ <- bufferManager.flushAll(tx.transactionNumber)
-        logSequenceNumber <- RollbackRecord(tx.transactionNumber).writeToLog(logManager)
-        _ <- logManager.flush(logSequenceNumber)
-    yield ()
+  def rollback(tx: Transaction): Unit =
+    doRollback(tx)
+    bufferManager.flushAll(tx.transactionNumber)
+    val logSequenceNumber = RollbackRecord(tx.transactionNumber).writeToLog(logManager)
+    logManager.flush(logSequenceNumber)
 
-  private def doRollback(tx: Transaction): Try[Unit] =
+  private def doRollback(tx: Transaction): Unit =
     @tailrec
-    def go(iterator: Iterator[Array[Byte]]): Try[Unit] =
+    def go(iterator: Iterator[Array[Byte]]): Unit =
       iterator.nextOption match
-        case None => Success(())
+        case None => ()
         case Some(bytes) =>
           LogRecord(bytes) match
             // Skip unknown operation.
@@ -46,38 +44,33 @@ class RecoveryManager(logManager: LogManager, bufferManager: BufferManager):
                 case Some(aTransactionNumber) =>
                   if aTransactionNumber == tx.transactionNumber then
                     logRecord match
-                      case StartRecord(_aTransactionNumber) => Success(())
+                      case StartRecord(_aTransactionNumber) => ()
                       case _ =>
-                        logRecord.undo(tx) match
-                          case Success(()) => go(iterator)
-                          // Stop rollback on failure.
-                          case Failure(e) => Failure(e)
+                        logRecord.undo(tx)
+                        go(iterator)
                   else
                     go(iterator)
 
-    logManager.iterator match
-      case Success(iterator) => go(iterator)
-      case Failure(e) => Failure(e)
+    go(logManager.iterator)
 
-  def recover(tx: Transaction): Try[Unit] =
-    for _ <- doRecover(tx)
-        _ <- bufferManager.flushAll(tx.transactionNumber)
-        logSequenceNumber <- CheckpointRecord.writeToLog(logManager)
-        _ <- logManager.flush(logSequenceNumber)
-    yield ()
+  def recover(tx: Transaction): Unit =
+    doRecover(tx)
+    bufferManager.flushAll(tx.transactionNumber)
+    val logSequenceNumber = CheckpointRecord.writeToLog(logManager)
+    logManager.flush(logSequenceNumber)
 
-  private def doRecover(tx: Transaction): Try[Unit] =
+  private def doRecover(tx: Transaction): Unit =
     @tailrec
-    def go(iterator: Iterator[Array[Byte]], finishedTransactionNumbers: List[Int]): Try[Unit] =
+    def go(iterator: Iterator[Array[Byte]], finishedTransactionNumbers: List[Int]): Unit =
       iterator.nextOption match
-        case None => Success(())
+        case None => ()
         case Some(bytes) =>
           LogRecord(bytes) match
             // Skip unknown operation.
             case None =>
               go(iterator, finishedTransactionNumbers)
             case Some(CheckpointRecord) =>
-              Success(())
+              ()
             case Some(CommitRecord(aTransactionNumber)) =>
               go(iterator, aTransactionNumber :: finishedTransactionNumbers)
             case Some(RollbackRecord(aTransactionNumber)) =>
@@ -86,26 +79,17 @@ class RecoveryManager(logManager: LogManager, bufferManager: BufferManager):
               // All record type except checkpoint has transaction number.
               val aTransactionNumber = logRecord.maybeTransactionNumber.get
               if !finishedTransactionNumbers.contains(aTransactionNumber) then
-                logRecord.undo(tx) match
-                  case Success(()) => go(iterator, finishedTransactionNumbers)
-                  case Failure(e) => Failure(e)
-              else
-                go(iterator, finishedTransactionNumbers)
+                logRecord.undo(tx)
+              go(iterator, finishedTransactionNumbers)
 
-    logManager.iterator match
-      case Success(iterator) => go(iterator, List.empty[Int])
-      case Failure(e) => Failure(e)
+    go(logManager.iterator, List.empty[Int])
 
-  def setInt(tx: Transaction, buffer: Buffer, offset: Int): Try[LSN] =
+  def setInt(tx: Transaction, buffer: Buffer, offset: Int): LSN =
     val oldValue = buffer.contents.getInt(offset)
-    buffer.block match
-      case None => Failure(MissingBlockException)
-      case Some(blockId) =>
-        SetIntRecord(tx.transactionNumber, offset, oldValue, blockId).writeToLog(logManager)
+    val blockId = buffer.block.getOrElse(throw MissingBlockException)
+    SetIntRecord(tx.transactionNumber, offset, oldValue, blockId).writeToLog(logManager)
 
-  def setString(tx: Transaction, buffer: Buffer, offset: Int): Try[LSN] =
+  def setString(tx: Transaction, buffer: Buffer, offset: Int): LSN =
     val oldValue = buffer.contents.getString(offset)
-    buffer.block match
-      case None => Failure(MissingBlockException)
-      case Some(blockId) =>
-        SetStringRecord(tx.transactionNumber, offset, oldValue, blockId).writeToLog(logManager)
+    val blockId = buffer.block.getOrElse(throw MissingBlockException)
+    SetStringRecord(tx.transactionNumber, offset, oldValue, blockId).writeToLog(logManager)

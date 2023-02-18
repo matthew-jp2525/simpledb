@@ -14,22 +14,20 @@ enum LockType:
 class ConcurrencyManager:
   private val locks = new mutable.HashMap[BlockId, LockType]()
 
-  def xLock(blockId: BlockId): Try[Unit] =
+  def xLock(blockId: BlockId): Unit =
     locks.get(blockId) match
       case None | Some(S) =>
-        for _ <- sLock(blockId)
-            _ <- lockTable.xLock(blockId)
-            _ = locks.put(blockId, X)
-        yield ()
-      case Some(X) => Success(())
+        sLock(blockId)
+        lockTable.xLock(blockId)
+        locks.put(blockId, X)
+      case Some(X) => ()
 
-  def sLock(blockId: BlockId): Try[Unit] =
+  def sLock(blockId: BlockId): Unit =
     locks.get(blockId) match
       case None =>
-        for _ <- lockTable.sLock(blockId)
-            _ = locks.put(blockId, S)
-        yield ()
-      case Some(_lockType) => Success(())
+        lockTable.sLock(blockId)
+        locks.put(blockId, S)
+      case Some(_lockType) => ()
       
   def release(): Unit =
     locks.keySet.foreach(blockId => lockTable.unLock(blockId))

@@ -9,7 +9,7 @@ import com.matthewjp2525.simpledb.transaction.Transaction
 import com.matthewjp2525.simpledb.util.SeqSupport.foreachTry
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success, Try, Using}
 
 sealed abstract class TableManagerException extends Exception with Product with Serializable
 
@@ -22,69 +22,60 @@ class TableManager private(
                             val fieldCatalogLayout: Layout
                           ):
 
-  def getLayout(tableName: TableName, tx: Transaction): Try[Layout] =
+  def getLayout(tableName: TableName, tx: Transaction): Layout =
     @tailrec
-    def lookupTableCatalog(ts: TableScan): Try[SlotSize] =
-      ts.next() match
-        case Success(true) =>
-          ts.getString("tblname") match
-            case Success(aTableName) =>
-              if aTableName == tableName then
-                ts.getInt("slotsize")
-              else
-                lookupTableCatalog(ts)
-            case Failure(e) => Failure(e)
-        case Success(false) =>
-          Failure(TableNotFoundException(tableName))
-        case Failure(e) => Failure(e)
+    def lookupTableCatalog(ts: TableScan): SlotSize =
+      if ts.next() then
+        val aTableName = ts.getString("tblname")
+        if aTableName == tableName then
+          ts.getInt("slotsize")
+        else
+          lookupTableCatalog(ts)
+      else
+        throw TableNotFoundException(tableName)
 
     @tailrec
     def lookupFieldCatalog(
                             ts: TableScan,
                             accSchema: Schema,
                             accOffsets: Map[FieldName, Offset]
-                          ): Try[(Schema, Map[FieldName, Offset])] =
-      ts.next() match
-        case Success(true) =>
-          ts.getString("tblname") match
-            case Success(aTableName) =>
-              if aTableName == tableName then
-                (for fieldName <- ts.getString("fldname")
-                     fieldTypeValue <- ts.getInt("type")
-                     fieldType = FieldType.fromValue(fieldTypeValue)
-                     fieldLength <- ts.getInt("length")
-                     offset <- ts.getInt("offset")
-                yield (fieldName, fieldType, fieldLength, offset)) match
-                  case Success((fieldName, fieldType, fieldLength, offset)) =>
-                    lookupFieldCatalog(
-                      ts,
-                      accSchema.addField(fieldName, fieldType, fieldLength),
-                      accOffsets + (fieldName -> offset)
-                    )
-                  case Failure(e) => Failure(e)
-              else
-                lookupFieldCatalog(
-                  ts,
-                  accSchema,
-                  accOffsets
-                )
-            case Failure(e) => Failure(e)
-        case Success(false) =>
-          Success(accSchema, accOffsets)
-        case Failure(e) => Failure(e)
-
-    for tcat <- TableScan(tx, "tblcat", tableCatalogLayout)
-        slotSize <- lookupTableCatalog(tcat)
-        _ = tcat.close()
-        fcat <- TableScan(tx, "fldcat", fieldCatalogLayout)
-        (schema, offsets) <- lookupFieldCatalog(fcat, Schema(), Map.empty[FieldName, Offset])
-        _ = fcat.close()
-    yield Layout(schema, offsets, slotSize)
+                          ): (Schema, Map[FieldName, Offset]) =
+      if ts.next() then
+        val aTableName = ts.getString("tblname")
+        if aTableName == tableName then
+          val fieldName = ts.getString("fldname")
+          val fieldTypeValue = ts.getInt("type")
+          val fieldType = FieldType.fromValue(fieldTypeValue)
+          val fieldLength = ts.getInt("length")
+          val offset = ts.getInt("offset")
+          lookupFieldCatalog(
+            ts,
+            accSchema.addField(fieldName, fieldType, fieldLength),
+            accOffsets + (fieldName -> offset)
+          )
+        else
+          lookupFieldCatalog(
+            ts,
+            accSchema,
+            accOffsets
+          )
+      else
+        (accSchema, accOffsets)
+        
+    val slotSize = Using.resource(TableScan(tx, "tblcat", tableCatalogLayout)) { ts =>
+      lookupTableCatalog(ts)
+    }
+    
+    val (schema, offsets) = Using.resource(TableScan(tx, "fldcat", fieldCatalogLayout)) { ts =>
+      lookupFieldCatalog(ts, Schema(), Map.empty[FieldName, Offset]) 
+    }
+    
+    Layout(schema, offsets, slotSize)
 
 object TableManager:
   val MAX_NAME = 16
 
-  def apply(isNew: Boolean, tx: Transaction): Try[TableManager] =
+  def apply(isNew: Boolean, tx: Transaction): TableManager =
     val tableCatalogSchema =
       Schema()
         .addStringField("tblname", MAX_NAME)
@@ -103,23 +94,22 @@ object TableManager:
     val fieldCatalogLayout = Layout(fieldCatalogSchema)
 
     if isNew then
-      for _ <- createTable(
+      createTable(
         "tblcat",
         tableCatalogSchema,
         tableCatalogLayout,
         fieldCatalogLayout,
         tx
       )
-          _ <- createTable(
-            "fldcat",
-            fieldCatalogSchema,
-            tableCatalogLayout,
-            fieldCatalogLayout,
-            tx
-          )
-      yield new TableManager(tableCatalogLayout, fieldCatalogLayout)
-    else
-      Success(new TableManager(tableCatalogLayout, fieldCatalogLayout))
+      createTable(
+        "fldcat",
+        fieldCatalogSchema,
+        tableCatalogLayout,
+        fieldCatalogLayout,
+        tx
+      )
+      
+    new TableManager(tableCatalogLayout, fieldCatalogLayout)
 
   def createTable(
                    tableName: TableName,
@@ -127,29 +117,22 @@ object TableManager:
                    tableCatalogLayout: Layout,
                    fieldCatalogLayout: Layout,
                    tx: Transaction
-                 ): Try[Unit] =
+                 ): Unit =
     val layout = Layout(schema)
 
-    def createTableCatalog(): Try[Unit] =
-      for ts <- TableScan(tx, "tblcat", tableCatalogLayout)
-          _ <- ts.insert()
-          _ <- ts.setString("tblname", tableName)
-          _ <- ts.setInt("slotsize", layout.slotSize)
-      yield ts.close()
+    Using.resource(TableScan(tx, "tblcat", tableCatalogLayout)) { ts =>
+      ts.insert()
+      ts.setString("tblname", tableName)
+      ts.setInt("slotsize", layout.slotSize)
+    }
 
-    def createFieldCatalog(): Try[Unit] =
-      for ts <- TableScan(tx, "fldcat", fieldCatalogLayout)
-          _ <- foreachTry(schema.fields) { fieldName =>
-            for _ <- ts.insert()
-                _ <- ts.setString("tblname", tableName)
-                _ <- ts.setString("fldname", fieldName)
-                _ <- ts.setInt("type", schema.`type`(fieldName).value)
-                _ <- ts.setInt("length", schema.length(fieldName))
-                _ <- ts.setInt("offset", layout.offset(fieldName))
-            yield ()
-          }
-      yield ts.close()
-
-    for _ <- createTableCatalog()
-        _ <- createFieldCatalog()
-    yield ()
+    Using.resource(TableScan(tx, "fldcat", fieldCatalogLayout)) { ts =>
+      schema.fields.foreach { fieldName =>
+        ts.insert()
+        ts.setString("tblname", tableName)
+        ts.setString("fldname", fieldName)
+        ts.setInt("type", schema.`type`(fieldName).value)
+        ts.setInt("length", schema.length(fieldName))
+        ts.setInt("offset", layout.offset(fieldName))
+      }
+    }

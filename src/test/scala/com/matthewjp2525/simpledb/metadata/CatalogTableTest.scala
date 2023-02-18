@@ -4,6 +4,7 @@ import com.matthewjp2525.simpledb.buffer.BufferManager
 import com.matthewjp2525.simpledb.filemanager.FileManager
 import com.matthewjp2525.simpledb.log.LogManager
 import com.matthewjp2525.simpledb.record.*
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.record.FieldType.*
 import com.matthewjp2525.simpledb.transaction.{Transaction, TransactionNumberGenerator}
 import org.apache.commons.io.FileUtils
@@ -25,12 +26,12 @@ class CatalogTableTest extends munit.FunSuite:
 
   testDirs.test("catalog table test") { testDir =>
     val fileManager = FileManager(testDir, 400)
-    val logManager = LogManager(fileManager, "testlogfile").get
+    val logManager = LogManager(fileManager, "testlogfile")
     val bufferManager = BufferManager(fileManager, logManager, 8)
     val transactionNumberGenerator = new TransactionNumberGenerator()
     val tx = Transaction(fileManager, logManager, bufferManager, transactionNumberGenerator)
 
-    val tableManager = TableManager(true, tx).get
+    val tableManager = TableManager(true, tx)
 
     val schema = Schema()
       .addIntField("A")
@@ -42,19 +43,19 @@ class CatalogTableTest extends munit.FunSuite:
       tableManager.tableCatalogLayout,
       tableManager.fieldCatalogLayout,
       tx
-    ).get
+    )
 
-    val tableCatalogLayout = tableManager.getLayout("tblcat", tx).get
+    val tableCatalogLayout = tableManager.getLayout("tblcat", tx)
 
-    val tcat = TableScan(tx, "tblcat", tableCatalogLayout).get
+    val tcat = TableScan(tx, "tblcat", tableCatalogLayout)
 
     @tailrec
     def readTableCatalog(
                           acc: ListBuffer[(TableName, SlotSize)] = ListBuffer.empty[(TableName, SlotSize)]
                         ): List[(TableName, SlotSize)] =
-      if tcat.next().get then
-        val tableName = tcat.getString("tblname").get
-        val slotSize = tcat.getInt("slotsize").get
+      if tcat.next() then
+        val tableName = tcat.getString("tblname")
+        val slotSize = tcat.getInt("slotsize")
         readTableCatalog(acc += Tuple2(tableName, slotSize))
       else
         acc.toList
@@ -64,18 +65,18 @@ class CatalogTableTest extends munit.FunSuite:
     tcat.close()
 
 
-    val fieldCatalogLayout = tableManager.getLayout("fldcat", tx).get
+    val fieldCatalogLayout = tableManager.getLayout("fldcat", tx)
 
-    val fcat = TableScan(tx, "fldcat", fieldCatalogLayout).get
+    val fcat = TableScan(tx, "fldcat", fieldCatalogLayout)
 
     @tailrec
     def readFieldCatalog(
                           acc: ListBuffer[(TableName, FieldName, Offset)] = ListBuffer.empty[(TableName, FieldName, Offset)]
                         ): List[(TableName, FieldName, Offset)] =
-      if fcat.next().get then
-        val tableName = fcat.getString("tblname").get
-        val fieldName = fcat.getString("fldname").get
-        val offset = fcat.getInt("offset").get
+      if fcat.next() then
+        val tableName = fcat.getString("tblname")
+        val fieldName = fcat.getString("fldname")
+        val offset = fcat.getInt("offset")
         readFieldCatalog(acc += Tuple3(tableName, fieldName, offset))
       else
         acc.toList
@@ -84,7 +85,7 @@ class CatalogTableTest extends munit.FunSuite:
 
     fcat.close()
 
-    tx.commit().get
+    tx.commit()
 
     assertEquals(tableCatalog.map(x => x._1), List(
       "tblcat",

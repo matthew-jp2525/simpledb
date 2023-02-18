@@ -16,30 +16,26 @@ class LogIterator private(
   override def next: Array[Byte] =
     if currentPosition == fileManager.blockSize then
       blockId = BlockId(blockId.fileName, blockId.blockNumber - 1)
-      moveToBlock(this, blockId).map { _ =>
-        val record = page.getBytes(currentPosition)
-        currentPosition += Integer.BYTES + record.length
-        record
-      }.get
-    else
-      val record = page.getBytes(currentPosition)
-      currentPosition += Integer.BYTES + record.length
-      record
+      moveToBlock(this, blockId)
+
+    val record = page.getBytes(currentPosition)
+    currentPosition += Integer.BYTES + record.length
+    record
 
   override def hasNext: Boolean =
     currentPosition < fileManager.blockSize || blockId.blockNumber > 0
 
 object LogIterator:
-  def apply(fileManager: FileManager, blockId: BlockId): Try[LogIterator] =
+  def apply(fileManager: FileManager, blockId: BlockId): LogIterator =
     val logIterator = new LogIterator(
       fileManager = fileManager,
       blockId = blockId,
       page = Page(new Array[Byte](fileManager.blockSize))
     )
-    moveToBlock(logIterator, blockId).map(_ => logIterator)
+    moveToBlock(logIterator, blockId)
+    logIterator
 
-  def moveToBlock(logIterator: LogIterator, blockId: BlockId): Try[Unit] =
-    logIterator.fileManager.read(blockId, logIterator.page).map { _ =>
-      logIterator.boundary = logIterator.page.getInt(0)
-      logIterator.currentPosition = logIterator.boundary
-    }
+  def moveToBlock(logIterator: LogIterator, blockId: BlockId): Unit =
+    logIterator.fileManager.read(blockId, logIterator.page)
+    logIterator.boundary = logIterator.page.getInt(0)
+    logIterator.currentPosition = logIterator.boundary

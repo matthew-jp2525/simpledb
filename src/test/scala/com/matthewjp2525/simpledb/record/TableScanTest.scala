@@ -4,6 +4,7 @@ import com.matthewjp2525.simpledb.buffer.BufferManager
 import com.matthewjp2525.simpledb.filemanager.FileManager
 import com.matthewjp2525.simpledb.log.LogManager
 import com.matthewjp2525.simpledb.record.FieldType.*
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.transaction.{Transaction, TransactionNumberGenerator}
 import org.apache.commons.io.FileUtils
 
@@ -24,7 +25,7 @@ class TableScanTest extends munit.FunSuite:
 
   testDirs.test("table scan test") { testDir =>
     val fileManager = FileManager(testDir, 400)
-    val logManager = LogManager(fileManager, "testlogfile").get
+    val logManager = LogManager(fileManager, "testlogfile")
     val bufferManager = BufferManager(fileManager, logManager, 8)
     val transactionNumberGenerator = new TransactionNumberGenerator()
     val tx = Transaction(fileManager, logManager, bufferManager, transactionNumberGenerator)
@@ -47,32 +48,32 @@ class TableScanTest extends munit.FunSuite:
       39
     ))
 
-    val tableScan = TableScan(tx, "T", layout).get
+    val tableScan = TableScan(tx, "T", layout)
 
     @tailrec
     def fillTableWithRecords(number: Int = 0): Unit =
       if number < 20 then
-        tableScan.insert().get
-        tableScan.setInt("A", number).get
-        tableScan.setString("B", "rec" + number).get
+        tableScan.insert()
+        tableScan.setInt("A", number)
+        tableScan.setString("B", "rec" + number)
         fillTableWithRecords(number + 1)
 
-    tableScan.beforeFirst().get
+    tableScan.beforeFirst()
     fillTableWithRecords()
 
     @tailrec
     def collectRecords(acc: ListBuffer[(Int, String)] = ListBuffer.empty[(Int, String)]): List[(Int, String)] =
-      val next = tableScan.next().get
+      val next = tableScan.next()
       if next then
-        val a = tableScan.getInt("A").get
-        val b = tableScan.getString("B").get
+        val a = tableScan.getInt("A")
+        val b = tableScan.getString("B")
         // val rid = tableScan.getRid
         acc += Tuple2(a, b)
         collectRecords(acc)
       else
         acc.toList
 
-    tableScan.beforeFirst().get
+    tableScan.beforeFirst()
     val records = collectRecords()
 
     assertEquals(records, List(
@@ -100,11 +101,11 @@ class TableScanTest extends munit.FunSuite:
 
     @tailrec
     def deleteSubset(): Unit =
-      val next = tableScan.next().get
+      val next = tableScan.next()
       if next then
-        val a = tableScan.getInt("A").get
+        val a = tableScan.getInt("A")
         if a % 3 == 0 then
-          tableScan.delete().get
+          tableScan.delete()
         deleteSubset()
 
     tableScan.beforeFirst()

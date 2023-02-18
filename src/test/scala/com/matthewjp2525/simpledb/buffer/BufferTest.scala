@@ -19,10 +19,10 @@ class BufferTest extends munit.FunSuite:
 
   testDirs.test("modified buffer gets written to disk when replaced") { testDir =>
     val fileManager = FileManager(testDir, 400)
-    val logManager = LogManager(fileManager, "testlogfile").get
+    val logManager = LogManager(fileManager, "testlogfile")
     val bufferManager = BufferManager(fileManager, logManager, 3)
 
-    val buffer1 = bufferManager.pin(BlockId("testfile", 1)).get
+    val buffer1 = bufferManager.pin(BlockId("testfile", 1))
     val number = buffer1.contents.getInt(80)
     buffer1.contents.setInt(80, number + 1)
     buffer1.setModified(1, 0)

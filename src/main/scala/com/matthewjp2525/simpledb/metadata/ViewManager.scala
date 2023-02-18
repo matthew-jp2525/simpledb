@@ -6,7 +6,7 @@ import com.matthewjp2525.simpledb.record.{Schema, TableScan}
 import com.matthewjp2525.simpledb.transaction.Transaction
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success, Try, Using}
 
 sealed abstract class ViewManagerException extends Exception with Product with Serializable
 
@@ -15,41 +15,34 @@ object ViewManagerException:
     override def getMessage: String = s"specified view ($viewName) not found | " + super.getMessage
 
 class ViewManager private(tableManager: TableManager):
-  def createView(viewName: String, viewDef: String, tx: Transaction): Try[Unit] =
-    for layout <- tableManager.getLayout("viewcat", tx)
-        ts <- TableScan(tx, "viewcat", layout)
-        _ <- ts.setString("viewname", viewName)
-        _ <- ts.setString("viewdef", viewDef)
-    yield ts.close()
+  def createView(viewName: String, viewDef: String, tx: Transaction): Unit =
+    val layout = tableManager.getLayout("viewcat", tx)
+    Using.resource(TableScan(tx, "viewcat", layout)) { ts =>
+      ts.setString("viewname", viewName)
+      ts.setString("viewdef", viewDef)
+    }
 
-  def getViewDef(viewName: String, tx: Transaction): Try[String] =
+  def getViewDef(viewName: String, tx: Transaction): String =
     @tailrec
-    def lookupViewDef(ts: TableScan): Try[String] =
-      ts.next() match
-        case Success(true) =>
-          ts.getString("viewname") match
-            case Success(aViewName) =>
-              if aViewName equals viewName then
-                ts.getString("viewdef")
-              else
-                lookupViewDef(ts)
-            case Failure(e) => Failure(e)
-        case Success(false) =>
-          Failure(ViewDefNotFoundException(viewName))
-        case Failure(e) => Failure(e)
+    def lookupViewDef(ts: TableScan): String =
+      if ts.next() then
+        val aViewName = ts.getString("viewname")
+        if aViewName == viewName then
+          ts.getString("viewdef")
+        else
+          lookupViewDef(ts)
+      else
+        throw ViewDefNotFoundException(viewName)
 
-    for layout <- tableManager.getLayout("viewcat", tx)
-        ts <- TableScan(tx, "viewcat", layout)
-        viewDef <- lookupViewDef(ts)
-    yield {
-      ts.close()
-      viewDef
+    val layout = tableManager.getLayout("viewcat", tx)
+    Using.resource(TableScan(tx, "viewcat", layout)) { ts =>
+      lookupViewDef(ts)
     }
 
 object ViewManager:
   private val MAX_VIEWDEF = 100
 
-  def apply(isNew: Boolean, tableManager: TableManager, tx: Transaction): Try[ViewManager] =
+  def apply(isNew: Boolean, tableManager: TableManager, tx: Transaction): ViewManager =
     if isNew then
       val schema = Schema()
         .addStringField("viewname", TableManager.MAX_NAME)
@@ -61,6 +54,6 @@ object ViewManager:
         tableManager.tableCatalogLayout,
         tableManager.fieldCatalogLayout,
         tx
-      ).map(_ => new ViewManager(tableManager))
-    else
-      Success(new ViewManager(tableManager))
+      )
+      
+    new ViewManager(tableManager)

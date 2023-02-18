@@ -4,6 +4,7 @@ import com.matthewjp2525.simpledb.buffer.BufferManager
 import com.matthewjp2525.simpledb.filemanager.FileManager
 import com.matthewjp2525.simpledb.log.LogManager
 import com.matthewjp2525.simpledb.record.*
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.record.FieldType.*
 import com.matthewjp2525.simpledb.transaction.{Transaction, TransactionNumberGenerator}
 import org.apache.commons.io.FileUtils
@@ -23,12 +24,12 @@ class TableManagerTest extends munit.FunSuite:
 
   testDirs.test("table manager test") { testDir =>
     val fileManager = FileManager(testDir, 400)
-    val logManager = LogManager(fileManager, "testlogfile").get
+    val logManager = LogManager(fileManager, "testlogfile")
     val bufferManager = BufferManager(fileManager, logManager, 8)
     val transactionNumberGenerator = new TransactionNumberGenerator()
     val tx = Transaction(fileManager, logManager, bufferManager, transactionNumberGenerator)
 
-    val tableManager = TableManager(true, tx).get
+    val tableManager = TableManager(true, tx)
 
     val schema = Schema()
       .addIntField("A")
@@ -40,11 +41,11 @@ class TableManagerTest extends munit.FunSuite:
       tableManager.tableCatalogLayout,
       tableManager.fieldCatalogLayout,
       tx
-    ).get
+    )
 
-    val layout = tableManager.getLayout("my_table", tx).get
+    val layout = tableManager.getLayout("my_table", tx)
 
-    tx.commit().get
+    tx.commit()
 
     assertEquals(layout, Layout(
       Schema(

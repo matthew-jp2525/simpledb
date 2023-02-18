@@ -10,87 +10,62 @@ class FileManager private(
                            isNew: Boolean,
                            openFiles: mutable.Map[String, RandomAccessFile]
                          ):
-  def read(blockId: BlockId, page: Page): Try[Unit] = synchronized {
-    val result =
-      for file <- getFile(blockId.fileName)
-          _ <- Try {
-            file.seek(blockId.blockNumber * blockSize)
-          }
-          _ <- Try {
-            file.getChannel.read(page.contents)
-          }
-      yield ()
-
-    result match
-      case Success(()) => Success(())
-      case Failure(e) => Failure(new RuntimeException("cannot read block " + blockId + " | " + e.getMessage))
-  }
-
-  private def getFile(fileName: String): Try[RandomAccessFile] =
+  def read(blockId: BlockId, page: Page): Unit = synchronized {
     Try {
-      val maybeOpenFile = openFiles.get(fileName)
-
-      maybeOpenFile match
-        case Some(openFile) =>
-          openFile
-        case None =>
-          val newFile = new RandomAccessFile(
-            new File(dbDirectory, fileName),
-            "rws"
-          )
-
-          openFiles.put(fileName, newFile)
-
-          newFile
-    }
-
-  def write(blockId: BlockId, page: Page): Try[Unit] = synchronized {
-    val result =
-      for file <- getFile(blockId.fileName)
-          _ <- Try {
-            file.seek(blockId.blockNumber * blockSize)
-          }
-          _ <- Try {
-            file.getChannel.write(page.contents)
-          }
-      yield ()
-
-    result match
-      case Success(()) => Success(())
-      case Failure(e) => Failure(new RuntimeException("cannot write block " + blockId + " | " + e.getMessage))
+      val file = getFile(blockId.fileName)
+      file.seek(blockId.blockNumber * blockSize)
+      file.getChannel.read(page.contents)
+    } match
+      case Success(_) => ()
+      case Failure(e) => throw new RuntimeException("cannot read block " + blockId + " | " + e.getMessage)
   }
 
-  def append(fileName: String): Try[BlockId] = synchronized {
-    val result =
-      for
-        newBlockNumber <- length(fileName)
-        newBlockId = BlockId(fileName, newBlockNumber)
-        file <- getFile(newBlockId.fileName)
-        _ <- Try {
-          file.seek(newBlockId.blockNumber * blockSize)
-        }
-        byteArray = new Array[Byte](blockSize)
-        _ <- Try {
-          file.write(byteArray)
-        }
-      yield newBlockId
+  private def getFile(fileName: String): RandomAccessFile =
+    val maybeOpenFile = openFiles.get(fileName)
+    maybeOpenFile match
+      case Some(openFile) =>
+        openFile
+      case None =>
+        val newFile = new RandomAccessFile(
+          new File(dbDirectory, fileName),
+          "rws"
+        )
+        openFiles.put(fileName, newFile)
+        newFile
 
-    result match
-      case Success(aNewBlockId) => Success(aNewBlockId)
-      case Failure(e) => Failure(new RuntimeException("cannot append block " + " | " + e.getMessage))
+  def write(blockId: BlockId, page: Page): Unit = synchronized {
+    Try {
+      val file = getFile(blockId.fileName)
+      file.seek(blockId.blockNumber * blockSize)
+      file.getChannel.write(page.contents)
+    } match
+      case Success(_) => ()
+      case Failure(e) => throw new RuntimeException("cannot write block " + blockId + " | " + e.getMessage)
   }
 
-  def length(fileName: String): Try[Int] =
-    val result =
-      for file <- getFile(fileName)
-          fileLength <- Try {
-            file.length()
-          }
-      yield (fileLength / blockSize).toInt
+  def append(fileName: String): BlockId = synchronized {
+    Try {
+      val newBlockNumber = length(fileName)
+      val newBlockId = BlockId(fileName, newBlockNumber)
+      val file = getFile(newBlockId.fileName)
+      file.seek(newBlockId.blockNumber * blockSize)
+      val byteArray = new Array[Byte](blockSize)
+      file.write(byteArray)
 
-    result match
-      case Success(aLength) => Success(aLength)
-      case Failure(e) => Failure(new RuntimeException("cannot access " + fileName + " | " + e.getMessage))
+      newBlockId
+    } match 
+      case Success(aNewBlockId) => aNewBlockId
+      case Failure(e) => throw new RuntimeException("cannot append block " + " | " + e.getMessage)
+  }
+
+  def length(fileName: String): Int =
+    Try {
+      val file = getFile(fileName)
+      val fileLength = file.length()
+      (fileLength / blockSize).toInt
+    } match
+      case Success(aLength) => aLength
+      case Failure(e) => throw new RuntimeException("cannot access " + fileName + " | " + e.getMessage)
 
 object FileManager:
   def apply(dbDirectory: File, blockSize: Int): FileManager =

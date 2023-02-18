@@ -13,11 +13,10 @@ class BufferList(bufferManager: BufferManager):
   def getBuffer(blockId: BlockId): Option[Buffer] =
     buffers.get(blockId)
 
-  def pin(blockId: BlockId): Try[Unit] =
-    bufferManager.pin(blockId).map { buffer =>
-      buffers.put(blockId, buffer)
-      pins += blockId
-    }
+  def pin(blockId: BlockId): Unit =
+    val buffer = bufferManager.pin(blockId)
+    buffers.put(blockId, buffer)
+    pins += blockId
 
   def unpin(blockId: BlockId): Unit =
     buffers.get(blockId) match

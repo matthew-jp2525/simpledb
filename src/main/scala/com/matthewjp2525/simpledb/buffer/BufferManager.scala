@@ -18,11 +18,10 @@ class BufferManager private(bufferPool: Array[Buffer], private var availableNumb
     availableNumber
   }
 
-  def flushAll(transactionNumber: TransactionNumber): Try[Unit] =
-    Try {
-      for buffer <- bufferPool
-          if buffer.modifyingTransactions == transactionNumber
-      yield buffer.flush.get
+  def flushAll(transactionNumber: TransactionNumber): Unit =
+    bufferPool.foreach { buffer =>
+      if buffer.modifyingTransactions == transactionNumber then
+        buffer.flush()
     }
 
   def unpin(buffer: Buffer): Unit = synchronized {
@@ -32,27 +31,25 @@ class BufferManager private(bufferPool: Array[Buffer], private var availableNumb
       notifyAll()
   }
 
-  def pin(blockId: BlockId, waitMaxTime: Long = MAX_TIME): Try[Buffer] = synchronized {
+  def pin(blockId: BlockId, waitMaxTime: Long = MAX_TIME): Buffer = synchronized {
     val startTime = System.currentTimeMillis()
 
     @tailrec
-    def retryToPin(blockId: BlockId): Try[Buffer] =
+    def retryToPin(blockId: BlockId): Buffer =
       val result = tryToPin(blockId)
       result match
-        case Success(None) =>
+        case None =>
           if waitingTooLong(startTime, waitMaxTime) then
-            Failure(BufferAbortException)
+            throw BufferAbortException
           else
             Try {
               wait(waitMaxTime)
             } match
               case Success(()) =>
                 retryToPin(blockId)
-              case Failure(_e: InterruptedException) => Failure(BufferAbortException)
-              case Failure(e) => Failure(e)
+              case Failure(_: InterruptedException) => throw BufferAbortException
 
-        case Success(Some(buffer)) => Success(buffer)
-        case Failure(e) => Failure(e)
+        case Some(aBuffer) => aBuffer
 
     retryToPin(blockId)
   }
@@ -60,27 +57,27 @@ class BufferManager private(bufferPool: Array[Buffer], private var availableNumb
   private def waitingTooLong(startTime: Long, waitMaxTime: Long): Boolean =
     System.currentTimeMillis() - startTime > waitMaxTime
 
-  private def tryToPin(blockId: BlockId): Try[Option[Buffer]] =
+  private def tryToPin(blockId: BlockId): Option[Buffer] =
     val maybeExistingBuffer = findExistingBuffer(blockId)
 
-    val maybeBufferOrFailure =
+    val maybeBuffer =
       maybeExistingBuffer match
         case None =>
           val maybeUnpinnedBuffer = chooseUnpinnedBuffer
           maybeUnpinnedBuffer match
-            case None => Success(None)
+            case None => None
             case Some(unpinnedBuffer) =>
-              unpinnedBuffer.assignToBlock(blockId).map(_ => Some(unpinnedBuffer))
-        case Some(existingBuffer) => Success(Some(existingBuffer))
+              unpinnedBuffer.assignToBlock(blockId)
+              Some(unpinnedBuffer)
+        case Some(existingBuffer) => Some(existingBuffer)
 
-    maybeBufferOrFailure match
-      case Failure(e) => Failure(e)
-      case Success(None) => Success(None)
-      case Success(Some(aBuffer)) =>
-        if (!aBuffer.isPinned) then
+    maybeBuffer match
+      case None => None
+      case Some(aBuffer) =>
+        if !aBuffer.isPinned then
           availableNumber -= 1
         aBuffer.pin()
-        Success(Some(aBuffer))
+        Some(aBuffer)
 
 
   private def findExistingBuffer(blockId: BlockId): Option[Buffer] =

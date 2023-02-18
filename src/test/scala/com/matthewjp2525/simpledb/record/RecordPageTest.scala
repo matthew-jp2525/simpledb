@@ -4,6 +4,7 @@ import com.matthewjp2525.simpledb.buffer.BufferManager
 import com.matthewjp2525.simpledb.filemanager.FileManager
 import com.matthewjp2525.simpledb.log.LogManager
 import com.matthewjp2525.simpledb.record.FieldType.*
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.transaction.{Transaction, TransactionNumberGenerator}
 import org.apache.commons.io.FileUtils
 
@@ -24,7 +25,7 @@ class RecordPageTest extends munit.FunSuite:
 
   testDirs.test("record page test") { testDir =>
     val fileManager = FileManager(testDir, 400)
-    val logManager = LogManager(fileManager, "testlogfile").get
+    val logManager = LogManager(fileManager, "testlogfile")
     val bufferManager = BufferManager(fileManager, logManager, 8)
     val transactionNumberGenerator = new TransactionNumberGenerator()
     val tx = Transaction(fileManager, logManager, bufferManager, transactionNumberGenerator)
@@ -47,27 +48,27 @@ class RecordPageTest extends munit.FunSuite:
       39
     ))
 
-    val blockId = tx.append("testfile").get
+    val blockId = tx.append("testfile")
     tx.pin(blockId)
-    val recordPage = RecordPage(tx, blockId, layout).get
-    recordPage.format().get
+    val recordPage = RecordPage(tx, blockId, layout)
+    recordPage.format()
 
     @tailrec
     def fillPageWithRecords(slot: Slot = -1, number: Int = 100): Unit =
-      val aSlot = recordPage.insertAfter(slot).get
+      val aSlot = recordPage.insertAfter(slot)
       if aSlot >= 0 then
-        recordPage.setInt(aSlot, "A", number).get
-        recordPage.setString(aSlot, "B", "rec" + number).get
+        recordPage.setInt(aSlot, "A", number)
+        recordPage.setString(aSlot, "B", "rec" + number)
         fillPageWithRecords(aSlot, number + 1)
 
     fillPageWithRecords()
 
     @tailrec
     def collectContents(slot: Slot = -1, acc: ListBuffer[(Slot, Int, String)] = ListBuffer.empty[(Slot, Int, String)]): List[(Slot, Int, String)] =
-      val aSlot = recordPage.nextAfter(slot).get
+      val aSlot = recordPage.nextAfter(slot)
       if aSlot >= 0 then
-        val a = recordPage.getInt(aSlot, "A").get
-        val b = recordPage.getString(aSlot, "B").get
+        val a = recordPage.getInt(aSlot, "A")
+        val b = recordPage.getString(aSlot, "B")
         acc += Tuple3(aSlot, a, b)
         collectContents(aSlot, acc)
       else
@@ -90,11 +91,11 @@ class RecordPageTest extends munit.FunSuite:
 
     @tailrec
     def deleteSubset(slot: Slot): Unit =
-      val aSlot = recordPage.nextAfter(slot).get
+      val aSlot = recordPage.nextAfter(slot)
       if aSlot >= 0 then
-        val a = recordPage.getInt(aSlot, "A").get
+        val a = recordPage.getInt(aSlot, "A")
         if a % 3 == 0 then
-          recordPage.delete(aSlot).get
+          recordPage.delete(aSlot)
         deleteSubset(aSlot)
 
     deleteSubset(-1)
@@ -112,5 +113,5 @@ class RecordPageTest extends munit.FunSuite:
     ))
 
     tx.unpin(blockId)
-    tx.commit().get
+    tx.commit()
   }

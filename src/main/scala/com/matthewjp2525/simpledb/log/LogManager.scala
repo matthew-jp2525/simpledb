@@ -22,7 +22,7 @@ class LogManager private(
   /**
    * places the log records in the page from right to left.
    */
-  def append(logRecord: Array[Byte]): Try[LSN] = synchronized {
+  def append(logRecord: Array[Byte]): LSN = synchronized {
     /**
      * The variable boundary contains the offset of the most recently added record,
      * which is written to the first 4 bytes of the page.
@@ -31,70 +31,64 @@ class LogManager private(
     val recordSize = logRecord.length
     val bytesNeeded = recordSize + Integer.BYTES
 
-    def doOperationsUnlessFit(): Try[Int] =
+    def doOperationsUnlessFit(): Int =
 
     /** If doesn't fit */
       if boundary - bytesNeeded < Integer.BYTES then
+        /** so move to the next block */
+        flush()
+        val newBlockId = appendNewBlock(fileManager, logFileName, logPage)
+        currentBlockId = newBlockId
 
-      /** so move to the next block */
-        for _ <- flush()
-            newBlockId <- appendNewBlock(fileManager, logFileName, logPage)
-        yield {
-          currentBlockId = newBlockId
+        /** the new boundary */
+        logPage.getInt(0)
+      else
+        boundary
 
-          /** the new boundary */
-          logPage.getInt(0)
-        }
-      else Success(boundary)
+    val newBoundary = doOperationsUnlessFit()
+    val recordPosition = newBoundary - bytesNeeded
+    logPage.setBytes(recordPosition, logRecord)
 
-    doOperationsUnlessFit().map { boundary =>
-      val recordPosition = boundary - bytesNeeded
-      logPage.setBytes(recordPosition, logRecord)
+    /** the new boundary */
+    logPage.setInt(0, recordPosition)
 
-      /** the new boundary */
-      logPage.setInt(0, recordPosition)
-
-      latestLSN += 1
-      latestLSN
-    }
+    latestLSN += 1
+    latestLSN
   }
 
-  private def flush(): Try[Unit] =
-    for _ <- fileManager.write(currentBlockId, logPage)
-      yield
-        lastSavedLSN = latestLSN
-
-  def flush(logSequenceNumber: LSN): Try[Unit] =
+  def flush(logSequenceNumber: LSN): Unit =
     if logSequenceNumber >= lastSavedLSN then
       flush()
-    else
-      Success(())
 
-  def iterator: Try[Iterator[Array[Byte]]] =
-    for _ <- flush()
-        logIterator <- LogIterator(fileManager = fileManager, blockId = currentBlockId)
-    yield logIterator
+  def iterator: Iterator[Array[Byte]] =
+    flush()
+    LogIterator(fileManager = fileManager, blockId = currentBlockId)
+
+  private def flush(): Unit =
+    fileManager.write(currentBlockId, logPage)
+    lastSavedLSN = latestLSN
 
 object LogManager:
-  def apply(fileManager: FileManager, logFileName: String): Try[LogManager] =
+  def apply(fileManager: FileManager, logFileName: String): LogManager =
     val logPage = Page(new Array[Byte](fileManager.blockSize))
+    val logSize = fileManager.length(logFileName)
+    val aBlockId =
+      if logSize == 0 then
+        appendNewBlock(fileManager, logFileName, logPage)
+      else
+        val aBlockId = BlockId(logFileName, logSize - 1)
+        fileManager.read(aBlockId, logPage)
+        aBlockId
 
-    for logSize <- fileManager.length(logFileName)
-        aBlockId <-
-          if (logSize == 0) then
-            appendNewBlock(fileManager, logFileName, logPage)
-          else
-            val aBlockId = BlockId(logFileName, logSize - 1)
-            fileManager.read(aBlockId, logPage).map(_ => aBlockId)
-    yield new LogManager(
+    new LogManager(
       fileManager = fileManager,
       logFileName = logFileName,
       logPage = logPage,
       currentBlockId = aBlockId
     )
 
-  private def appendNewBlock(fileManager: FileManager, logFileName: String, logPage: Page): Try[BlockId] =
-    for blockId <- fileManager.append(logFileName)
-        _ = logPage.setInt(0, fileManager.blockSize)
-        _ <- fileManager.write(blockId, logPage)
-    yield blockId
+  private def appendNewBlock(fileManager: FileManager, logFileName: String, logPage: Page): BlockId =
+    val blockId = fileManager.append(logFileName)
+    logPage.setInt(0, fileManager.blockSize)
+    fileManager.write(blockId, logPage)
+    blockId

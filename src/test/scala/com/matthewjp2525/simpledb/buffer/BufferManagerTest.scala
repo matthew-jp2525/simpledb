@@ -21,41 +21,40 @@ class BufferManagerTest extends munit.FunSuite:
 
   testDirs.test("pin request is aborted when no available buffers exist") { testDir =>
     val fileManager = FileManager(testDir, 400)
-    val logManager = LogManager(fileManager, "testlogfile").get
+    val logManager = LogManager(fileManager, "testlogfile")
     val bufferManager = BufferManager(fileManager, logManager, 3)
     assertEquals(bufferManager.available, 3)
 
     val buffers = new Array[Buffer](6)
 
-    buffers(0) = bufferManager.pin(BlockId("testfile", 0), 1).get
+    buffers(0) = bufferManager.pin(BlockId("testfile", 0), 1)
     assertEquals(bufferManager.available, 2)
 
-    buffers(1) = bufferManager.pin(BlockId("testfile", 1), 1).get
+    buffers(1) = bufferManager.pin(BlockId("testfile", 1), 1)
     assertEquals(bufferManager.available, 1)
 
-    buffers(2) = bufferManager.pin(BlockId("testfile", 2), 1).get
+    buffers(2) = bufferManager.pin(BlockId("testfile", 2), 1)
     assertEquals(bufferManager.available, 0)
 
     bufferManager.unpin(buffers(1))
     buffers(1) = null
     assertEquals(bufferManager.available, 1)
 
-    buffers(3) = bufferManager.pin(BlockId("testfile", 0), 1).get
+    buffers(3) = bufferManager.pin(BlockId("testfile", 0), 1)
     assertEquals(bufferManager.available, 1)
 
-    buffers(4) = bufferManager.pin(BlockId("testfile", 1), 1).get
+    buffers(4) = bufferManager.pin(BlockId("testfile", 1), 1)
     assertEquals(bufferManager.available, 0)
 
-    val bufferPinResult = bufferManager.pin(BlockId("testfile", 3), 1).map { buffer =>
-      buffers(5) = buffer
+    intercept[BufferAbortException.type] {
+      bufferManager.pin(BlockId("testfile", 3), 1)
     }
-    assertEquals(bufferPinResult, Failure(BufferAbortException))
 
     bufferManager.unpin(buffers(2))
     buffers(2) = null
     assertEquals(bufferManager.available, 1)
 
-    buffers(5) = bufferManager.pin(BlockId("testfile", 3), 1).get
+    buffers(5) = bufferManager.pin(BlockId("testfile", 3), 1)
     assertEquals(bufferManager.available, 0)
 
     val resultingBufferAssignment = buffers.zipWithIndex.map((buffer, i) => (Option(buffer).flatMap(_.block), i)).toList
