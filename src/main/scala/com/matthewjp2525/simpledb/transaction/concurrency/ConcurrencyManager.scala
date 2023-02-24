@@ -5,7 +5,6 @@ import com.matthewjp2525.simpledb.transaction.concurrency.ConcurrencyManager.loc
 import com.matthewjp2525.simpledb.transaction.concurrency.LockType.{S, X}
 
 import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
 
 enum LockType:
   case S extends LockType
@@ -28,7 +27,7 @@ class ConcurrencyManager:
         lockTable.sLock(blockId)
         locks.put(blockId, S)
       case Some(_lockType) => ()
-      
+
   def release(): Unit =
     locks.keySet.foreach(blockId => lockTable.unLock(blockId))
     locks.clear()

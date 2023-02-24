@@ -8,7 +8,6 @@ import com.matthewjp2525.simpledb.transaction.recovery.LogRecordOps.*
 import com.matthewjp2525.simpledb.transaction.recovery.RecoveryManagerException.MissingBlockException
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
 
 sealed abstract class RecoveryManagerException extends Exception with Product with Serializable
 

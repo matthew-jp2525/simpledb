@@ -3,8 +3,6 @@ package com.matthewjp2525.simpledb.buffer
 import com.matthewjp2525.simpledb.filemanager.{BlockId, FileManager, Page}
 import com.matthewjp2525.simpledb.log.{LSN, LogManager}
 
-import scala.util.{Success, Try}
-
 type TransactionNumber = Int
 
 class Buffer private(fileManager: FileManager, logManager: LogManager, val contents: Page):

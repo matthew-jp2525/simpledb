@@ -47,7 +47,8 @@ class BufferManager private(bufferPool: Array[Buffer], private var availableNumb
             } match
               case Success(()) =>
                 retryToPin(blockId)
-              case Failure(_: InterruptedException) => throw BufferAbortException
+              case Failure(_e: InterruptedException) => throw BufferAbortException
+              case Failure(e) => throw e
 
         case Some(aBuffer) => aBuffer
 

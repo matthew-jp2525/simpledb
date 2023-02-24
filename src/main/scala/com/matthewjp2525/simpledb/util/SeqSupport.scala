@@ -13,4 +13,5 @@ object SeqSupport:
         }
         case _ => Success(())
       }
+
     loop(list)

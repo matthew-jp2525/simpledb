@@ -4,7 +4,6 @@ import com.matthewjp2525.simpledb.buffer.{Buffer, BufferManager}
 import com.matthewjp2525.simpledb.filemanager.BlockId
 
 import scala.collection.mutable
-import scala.util.Try
 
 class BufferList(bufferManager: BufferManager):
   private val buffers = new mutable.HashMap[BlockId, Buffer]()

@@ -8,8 +8,6 @@ import com.matthewjp2525.simpledb.transaction.TransactionException.MissingBuffer
 import com.matthewjp2525.simpledb.transaction.concurrency.ConcurrencyManager
 import com.matthewjp2525.simpledb.transaction.recovery.RecoveryManager
 
-import scala.util.{Failure, Success, Try}
-
 sealed abstract class TransactionException extends Exception with Product with Serializable
 
 object TransactionException:

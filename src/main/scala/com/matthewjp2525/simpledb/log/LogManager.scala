@@ -3,8 +3,6 @@ package com.matthewjp2525.simpledb.log
 import com.matthewjp2525.simpledb.filemanager.{BlockId, FileManager, Page}
 import com.matthewjp2525.simpledb.log.LogManager.appendNewBlock
 
-import scala.util.{Failure, Success, Try}
-
 /**
  * `LSN` (or log sequence number), a log record's identifier.
  */
@@ -60,13 +58,13 @@ class LogManager private(
     if logSequenceNumber >= lastSavedLSN then
       flush()
 
-  def iterator: Iterator[Array[Byte]] =
-    flush()
-    LogIterator(fileManager = fileManager, blockId = currentBlockId)
-
   private def flush(): Unit =
     fileManager.write(currentBlockId, logPage)
     lastSavedLSN = latestLSN
+
+  def iterator: Iterator[Array[Byte]] =
+    flush()
+    LogIterator(fileManager = fileManager, blockId = currentBlockId)
 
 object LogManager:
   def apply(fileManager: FileManager, logFileName: String): LogManager =

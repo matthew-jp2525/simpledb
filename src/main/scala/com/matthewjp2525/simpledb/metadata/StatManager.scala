@@ -6,7 +6,7 @@ import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.transaction.Transaction
 
 import scala.annotation.tailrec
-import scala.util.{Try, Using}
+import scala.util.Using
 
 case class StatInfo(numBlocks: Int, numRecords: Int):
   def blocksAccessed: Int = numBlocks

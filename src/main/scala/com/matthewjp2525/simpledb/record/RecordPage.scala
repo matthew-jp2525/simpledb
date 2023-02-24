@@ -7,7 +7,6 @@ import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.transaction.Transaction
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
 
 type Slot = Int
 type Flag = Int
@@ -29,8 +28,13 @@ class RecordPage private(tx: Transaction, val blockId: BlockId, layout: Layout):
     val fieldPosition = offset(slot) + layout.offset(fieldName)
     tx.setString(blockId, fieldPosition, value, true)
 
+  private def offset(slot: Slot): Offset = slot * layout.slotSize
+
   def delete(slot: Slot): Unit =
     setFlag(slot, EMPTY)
+
+  private def setFlag(slot: Slot, flag: Flag): Unit =
+    tx.setInt(blockId, offset(slot), flag, true)
 
   def format(): Unit =
     @tailrec
@@ -51,6 +55,9 @@ class RecordPage private(tx: Transaction, val blockId: BlockId, layout: Layout):
 
     doFormat(0)
 
+  private def isValidSlot(slot: Slot): Boolean =
+    offset(slot + 1) <= tx.blockSize
+
   def nextAfter(slot: Slot): Slot =
     searchAfter(slot, USED)
 
@@ -60,28 +67,20 @@ class RecordPage private(tx: Transaction, val blockId: BlockId, layout: Layout):
       setFlag(newSlot, USED)
     newSlot
 
-  private def setFlag(slot: Slot, flag: Flag): Unit =
-    tx.setInt(blockId, offset(slot), flag, true)
-
   private def searchAfter(slot: Slot, flag: Flag): Slot =
     @tailrec
     def doSearchAfter(slot: Slot): Slot =
       val nextSlot: Slot = slot + 1
       if isValidSlot(nextSlot) then
         val aFlag = tx.getInt(blockId, offset(nextSlot))
-          if aFlag == flag then
-            nextSlot
-          else
-            doSearchAfter(nextSlot)
+        if aFlag == flag then
+          nextSlot
+        else
+          doSearchAfter(nextSlot)
       else
         -1
 
     doSearchAfter(slot)
-
-  private def isValidSlot(slot: Slot): Boolean =
-    offset(slot + 1) <= tx.blockSize
-
-  private def offset(slot: Slot): Offset = slot * layout.slotSize
 
 object RecordPage:
   val EMPTY: Int = 0

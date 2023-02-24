@@ -1,8 +1,8 @@
 package com.matthewjp2525.simpledb.record
 
 import com.matthewjp2525.simpledb.filemanager.Page
-import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.record.FieldType.*
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 
 type Offset = Int
 type SlotSize = Int

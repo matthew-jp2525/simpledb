@@ -3,13 +3,13 @@ package com.matthewjp2525.simpledb.metadata
 import com.matthewjp2525.simpledb.metadata.TableManager.MAX_NAME
 import com.matthewjp2525.simpledb.metadata.TableManagerException.TableNotFoundException
 import com.matthewjp2525.simpledb.record.*
-import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.record.LayoutOps.*
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.transaction.Transaction
 import com.matthewjp2525.simpledb.util.SeqSupport.foreachTry
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try, Using}
+import scala.util.Using
 
 sealed abstract class TableManagerException extends Exception with Product with Serializable
 
@@ -61,15 +61,15 @@ class TableManager private(
           )
       else
         (accSchema, accOffsets)
-        
+
     val slotSize = Using.resource(TableScan(tx, "tblcat", tableCatalogLayout)) { ts =>
       lookupTableCatalog(ts)
     }
-    
+
     val (schema, offsets) = Using.resource(TableScan(tx, "fldcat", fieldCatalogLayout)) { ts =>
-      lookupFieldCatalog(ts, Schema(), Map.empty[FieldName, Offset]) 
+      lookupFieldCatalog(ts, Schema(), Map.empty[FieldName, Offset])
     }
-    
+
     Layout(schema, offsets, slotSize)
 
 object TableManager:
@@ -108,7 +108,7 @@ object TableManager:
         fieldCatalogLayout,
         tx
       )
-      
+
     new TableManager(tableCatalogLayout, fieldCatalogLayout)
 
   def createTable(

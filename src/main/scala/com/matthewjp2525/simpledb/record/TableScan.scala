@@ -7,7 +7,6 @@ import com.matthewjp2525.simpledb.record.TableScanException.MissingRecordPageExc
 import com.matthewjp2525.simpledb.transaction.Transaction
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
 
 sealed abstract class TableScanException extends Exception with Product with Serializable
 
@@ -86,7 +85,7 @@ class TableScan private(
             this,
             currentRecordPage.getOrElse(throw MissingRecordPageException).blockId.blockNumber + 1
           )
-          
+
         val slot = currentRecordPage.getOrElse(throw MissingRecordPageException).insertAfter(currentSlot)
         currentSlot = slot
         go()
@@ -126,7 +125,7 @@ object TableScan:
       moveToNewBlock(tableScan)
     else
       moveToBlock(tableScan, 0)
-      
+
     tableScan
 
   private def moveToBlock(tableScan: TableScan, blockNumber: BlockNumber): Unit =

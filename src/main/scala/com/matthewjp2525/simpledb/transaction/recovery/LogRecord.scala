@@ -6,8 +6,6 @@ import com.matthewjp2525.simpledb.transaction.Transaction
 import com.matthewjp2525.simpledb.transaction.recovery.LogRecord.*
 import com.matthewjp2525.simpledb.transaction.recovery.Operation.*
 
-import scala.util.{Success, Try}
-
 enum Operation(val value: Int):
   case Checkpoint extends Operation(0)
   case Start extends Operation(1)

@@ -6,7 +6,7 @@ import com.matthewjp2525.simpledb.record.{Schema, TableScan}
 import com.matthewjp2525.simpledb.transaction.Transaction
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try, Using}
+import scala.util.Using
 
 sealed abstract class ViewManagerException extends Exception with Product with Serializable
 
@@ -55,5 +55,5 @@ object ViewManager:
         tableManager.fieldCatalogLayout,
         tx
       )
-      
+
     new ViewManager(tableManager)

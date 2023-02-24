@@ -33,7 +33,8 @@ class LockTable:
           } match
             case Success(()) =>
               retry()
-            case Failure(_: InterruptedException) => throw LockAbortException
+            case Failure(_e: InterruptedException) => throw LockAbortException
+            case Failure(e) => throw e
         case (Some(XLock), true) =>
           throw LockAbortException
         case (Some(SLock(count)), _) =>
@@ -58,7 +59,8 @@ class LockTable:
           } match
             case Success(()) =>
               retry()
-            case Failure(_: InterruptedException) => throw LockAbortException
+            case Failure(_e: InterruptedException) => throw LockAbortException
+            case Failure(e) => throw e
         // case when other slock exists and waiting too long
         case (Some(SLock(count)), true) if count > 1 =>
           throw LockAbortException

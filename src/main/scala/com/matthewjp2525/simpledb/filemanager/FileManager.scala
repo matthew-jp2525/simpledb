@@ -53,7 +53,7 @@ class FileManager private(
       file.write(byteArray)
 
       newBlockId
-    } match 
+    } match
       case Success(aNewBlockId) => aNewBlockId
       case Failure(e) => throw new RuntimeException("cannot append block " + " | " + e.getMessage)
   }

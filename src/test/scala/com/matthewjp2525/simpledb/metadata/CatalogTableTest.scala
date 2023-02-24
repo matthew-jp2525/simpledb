@@ -4,8 +4,8 @@ import com.matthewjp2525.simpledb.buffer.BufferManager
 import com.matthewjp2525.simpledb.filemanager.FileManager
 import com.matthewjp2525.simpledb.log.LogManager
 import com.matthewjp2525.simpledb.record.*
-import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.record.FieldType.*
+import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.transaction.{Transaction, TransactionNumberGenerator}
 import org.apache.commons.io.FileUtils
 
