@@ -72,6 +72,9 @@ class TableManager private(
 
     Layout(schema, offsets, slotSize)
 
+  def createTable(tableName: TableName, schema: Schema, tx: Transaction): Unit =
+    TableManager.createTable(tableName, schema, tableCatalogLayout, fieldCatalogLayout, tx)
+
 object TableManager:
   val MAX_NAME = 16
 
