@@ -1,6 +1,7 @@
 package com.matthewjp2525.simpledb.record
 
 import com.matthewjp2525.simpledb.filemanager.{BlockId, BlockNumber, FileName}
+import com.matthewjp2525.simpledb.query.{Constant, UpdateScan}
 import com.matthewjp2525.simpledb.record.SchemaOps.*
 import com.matthewjp2525.simpledb.record.TableScan.{atLastBlock, moveToBlock, moveToNewBlock}
 import com.matthewjp2525.simpledb.record.TableScanException.MissingRecordPageException
@@ -19,7 +20,7 @@ class TableScan private(
                          val tx: Transaction,
                          val layout: Layout,
                          val fileName: FileName
-                       ) extends AutoCloseable:
+                       ) extends UpdateScan:
   private var currentRecordPage: Option[RecordPage] = None
   private var currentSlot: Slot = -1
 
@@ -110,6 +111,20 @@ class TableScan private(
   def setString(fieldName: FieldName, value: String): Unit =
     val recordPage = currentRecordPage.getOrElse(throw MissingRecordPageException)
     recordPage.setString(currentSlot, fieldName, value)
+
+  def setVal(fieldName: FieldName, value: Constant): Unit =
+    layout.schema.`type`(fieldName) match
+      case FieldType.Integer =>
+        setInt(fieldName, value.asInt)
+      case FieldType.Varchar =>
+        setString(fieldName, value.asString)
+
+  def getVal(fieldName: FieldName): Constant =
+    layout.schema.`type`(fieldName) match
+      case FieldType.Integer =>
+        Constant(getInt(fieldName))
+      case FieldType.Varchar =>
+        Constant(getString(fieldName))
 
   def delete(): Unit =
     val recordPage = currentRecordPage.getOrElse(throw MissingRecordPageException)
